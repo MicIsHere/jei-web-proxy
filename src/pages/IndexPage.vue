@@ -14,6 +14,49 @@
         </div>
 
         <div class="jei-list__scroll col">
+          <div v-if="savedPlans.length" class="jei-plans">
+            <div class="jei-plans__head text-caption text-grey-8">已保存线路</div>
+            <q-list dense class="jei-plans__list">
+              <q-item
+                v-for="p in savedPlans"
+                :key="p.id"
+                clickable
+                class="jei-plans__item"
+                @click="openSavedPlan(p)"
+              >
+                <q-item-section avatar>
+                  <stack-view
+                    :content="{
+                      kind: 'item',
+                      id: p.rootItemKey.id,
+                      amount: 1,
+                      ...(p.rootItemKey.meta !== undefined ? { meta: p.rootItemKey.meta } : {}),
+                      ...(p.rootItemKey.nbt !== undefined ? { nbt: p.rootItemKey.nbt } : {}),
+                    }"
+                    :item-defs-by-key-hash="itemDefsByKeyHash"
+                    variant="slot"
+                    :show-name="false"
+                    :show-subtitle="false"
+                  />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label lines="1">{{ p.name }}</q-item-label>
+                  <q-item-label caption lines="1">{{ p.rootItemKey.id }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="delete"
+                    color="grey-7"
+                    @click.stop="deleteSavedPlan(p.id)"
+                  />
+                </q-item-section>
+              </q-item>
+            </q-list>
+            <q-separator class="q-my-sm" />
+          </div>
           <div v-if="favoriteItems.length" class="jei-grid">
             <q-card
               v-for="it in favoriteItems"
@@ -69,63 +112,97 @@
             <q-btn v-if="navStack.length" flat round dense icon="close" @click="closeDialog" />
           </div>
           <div v-if="navStack.length" class="jei-panel__tabs col-auto">
-            <q-btn
+            <q-tabs
+              v-model="activeTab"
               dense
-              outline
-              :color="activeTab === 'recipes' ? 'primary' : 'grey-7'"
-              label="Recipes (R)"
-              @click="activeTab = 'recipes'"
-            />
-            <q-btn
-              dense
-              outline
-              :color="activeTab === 'uses' ? 'primary' : 'grey-7'"
-              label="Uses (U)"
-              @click="activeTab = 'uses'"
-            />
+              outside-arrows
+              mobile-arrows
+              inline-label
+              class="q-px-sm q-pt-sm"
+            >
+              <q-tab name="recipes" label="Recipes (R)" />
+              <q-tab name="uses" label="Uses (U)" />
+              <q-tab name="planner" label="Planner (P)" />
+            </q-tabs>
           </div>
           <q-separator />
           <div v-if="navStack.length" class="col jei-panel__body">
-            <div v-if="activeRecipeGroups.length" class="jei-dialog__type-tabs">
-              <q-tabs
-                v-if="activeRecipeGroups.length > 1"
-                v-model="activeTypeKey"
-                dense
-                outside-arrows
-                mobile-arrows
-                inline-label
-                class="q-px-sm q-pt-sm"
-              >
-                <q-tab
-                  v-for="g in activeRecipeGroups"
-                  :key="g.typeKey"
-                  :name="g.typeKey"
-                  :label="`${g.label} (${g.recipeIds.length})`"
-                />
-              </q-tabs>
-              <q-separator v-if="activeRecipeGroups.length > 1" />
+            <crafting-planner-view
+              v-if="pack && index && currentItemKey"
+              v-show="activeTab === 'planner'"
+              class="q-pa-md"
+              :pack="pack"
+              :index="index"
+              :root-item-key="currentItemKey"
+              :item-defs-by-key-hash="itemDefsByKeyHash"
+              :initial-state="plannerInitialState"
+              @item-click="openDialogByItemKey"
+              @save-plan="savePlannerPlan"
+              @state-change="onPlannerStateChange"
+            />
+            <div v-show="activeTab !== 'planner'" class="jei-dialog__type-tabs">
+              <div v-if="activeRecipeGroups.length" class="jei-type-layout">
+                <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
+                  <q-btn
+                    v-for="m in typeMachineIcons"
+                    :key="m.typeKey"
+                    flat
+                    dense
+                    class="jei-type-sidebar__btn"
+                    :color="m.typeKey === activeTypeKey ? 'primary' : 'grey-7'"
+                    @click="activeTypeKey = m.typeKey"
+                  >
+                    <stack-view
+                      :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
+                      :item-defs-by-key-hash="itemDefsByKeyHash"
+                      variant="slot"
+                      :show-name="false"
+                      :show-subtitle="false"
+                    />
+                  </q-btn>
+                </div>
 
-              <q-tab-panels v-model="activeTypeKey" animated class="jei-panel__panels">
-                <q-tab-panel
-                  v-for="g in activeRecipeGroups"
-                  :key="g.typeKey"
-                  :name="g.typeKey"
-                  class="q-pa-md"
-                >
-                  <div class="column q-gutter-md">
-                    <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
-                      <recipe-viewer
-                        :recipe="recipesById.get(rid)!"
-                        :recipe-type="recipeTypesByKey.get(recipesById.get(rid)!.type)!"
-                        :item-defs-by-key-hash="itemDefsByKeyHash"
-                        @item-click="openDialogByItemKey"
-                      />
-                    </q-card>
-                  </div>
-                </q-tab-panel>
-              </q-tab-panels>
+                <div class="jei-type-main">
+                  <q-tabs
+                    v-model="activeTypeKey"
+                    dense
+                    outside-arrows
+                    mobile-arrows
+                    inline-label
+                    class="q-px-sm q-pt-sm"
+                  >
+                    <q-tab
+                      v-for="g in activeRecipeGroups"
+                      :key="g.typeKey"
+                      :name="g.typeKey"
+                      :label="`${g.label} (${g.recipeIds.length})`"
+                    />
+                  </q-tabs>
+                  <q-separator />
+
+                  <q-tab-panels v-model="activeTypeKey" animated class="jei-panel__panels">
+                    <q-tab-panel
+                      v-for="g in activeRecipeGroups"
+                      :key="g.typeKey"
+                      :name="g.typeKey"
+                      class="q-pa-md"
+                    >
+                      <div class="column q-gutter-md">
+                        <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                          <recipe-viewer
+                            :recipe="recipesById.get(rid)!"
+                            :recipe-type="recipeTypesByKey.get(recipesById.get(rid)!.type)!"
+                            :item-defs-by-key-hash="itemDefsByKeyHash"
+                            @item-click="openDialogByItemKey"
+                          />
+                        </q-card>
+                      </div>
+                    </q-tab-panel>
+                  </q-tab-panels>
+                </div>
+              </div>
+              <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
             </div>
-            <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
           </div>
           <div v-else class="q-pa-md text-caption text-grey-7 col">
             选择物品以查看 Recipes/Uses。
@@ -353,64 +430,98 @@
         </div>
 
         <div class="jei-dialog__tabs">
-          <q-btn
+          <q-tabs
+            v-model="activeTab"
             dense
-            outline
-            :color="activeTab === 'recipes' ? 'primary' : 'grey-7'"
-            label="Recipes (R)"
-            @click="activeTab = 'recipes'"
-          />
-          <q-btn
-            dense
-            outline
-            :color="activeTab === 'uses' ? 'primary' : 'grey-7'"
-            label="Uses (U)"
-            @click="activeTab = 'uses'"
-          />
+            outside-arrows
+            mobile-arrows
+            inline-label
+            class="q-px-sm q-pt-sm"
+          >
+            <q-tab name="recipes" label="Recipes (R)" />
+            <q-tab name="uses" label="Uses (U)" />
+            <q-tab name="planner" label="Planner (P)" />
+          </q-tabs>
           <div class="jei-dialog__hint text-caption">Backspace: 返回 · Esc: 关闭</div>
         </div>
 
         <q-scroll-area class="jei-dialog__body">
-          <div v-if="activeRecipeGroups.length" class="jei-dialog__type-tabs">
-            <q-tabs
-              v-if="activeRecipeGroups.length > 1"
-              v-model="activeTypeKey"
-              dense
-              outside-arrows
-              mobile-arrows
-              inline-label
-              class="q-px-sm q-pt-sm"
-            >
-              <q-tab
-                v-for="g in activeRecipeGroups"
-                :key="g.typeKey"
-                :name="g.typeKey"
-                :label="`${g.label} (${g.recipeIds.length})`"
-              />
-            </q-tabs>
-            <q-separator v-if="activeRecipeGroups.length > 1" />
+          <crafting-planner-view
+            v-if="pack && index && currentItemKey"
+            v-show="activeTab === 'planner'"
+            class="q-pa-md"
+            :pack="pack"
+            :index="index"
+            :root-item-key="currentItemKey"
+            :item-defs-by-key-hash="itemDefsByKeyHash"
+            :initial-state="plannerInitialState"
+            @item-click="openDialogByItemKey"
+            @save-plan="savePlannerPlan"
+            @state-change="onPlannerStateChange"
+          />
+          <div v-show="activeTab !== 'planner'" class="jei-dialog__type-tabs">
+            <div v-if="activeRecipeGroups.length" class="jei-type-layout">
+              <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
+                <q-btn
+                  v-for="m in typeMachineIcons"
+                  :key="m.typeKey"
+                  flat
+                  dense
+                  class="jei-type-sidebar__btn"
+                  :color="m.typeKey === activeTypeKey ? 'primary' : 'grey-7'"
+                  @click="activeTypeKey = m.typeKey"
+                >
+                  <stack-view
+                    :content="{ kind: 'item', id: m.machineItemId, amount: 1 }"
+                    :item-defs-by-key-hash="itemDefsByKeyHash"
+                    variant="slot"
+                    :show-name="false"
+                    :show-subtitle="false"
+                  />
+                </q-btn>
+              </div>
 
-            <q-tab-panels v-model="activeTypeKey" animated>
-              <q-tab-panel
-                v-for="g in activeRecipeGroups"
-                :key="g.typeKey"
-                :name="g.typeKey"
-                class="q-pa-md"
-              >
-                <div class="column q-gutter-md">
-                  <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
-                    <recipe-viewer
-                      :recipe="recipesById.get(rid)!"
-                      :recipe-type="recipeTypesByKey.get(recipesById.get(rid)!.type)!"
-                      :item-defs-by-key-hash="itemDefsByKeyHash"
-                      @item-click="openDialogByItemKey"
-                    />
-                  </q-card>
-                </div>
-              </q-tab-panel>
-            </q-tab-panels>
+              <div class="jei-type-main">
+                <q-tabs
+                  v-model="activeTypeKey"
+                  dense
+                  outside-arrows
+                  mobile-arrows
+                  inline-label
+                  class="q-px-sm q-pt-sm"
+                >
+                  <q-tab
+                    v-for="g in activeRecipeGroups"
+                    :key="g.typeKey"
+                    :name="g.typeKey"
+                    :label="`${g.label} (${g.recipeIds.length})`"
+                  />
+                </q-tabs>
+                <q-separator />
+
+                <q-tab-panels v-model="activeTypeKey" animated>
+                  <q-tab-panel
+                    v-for="g in activeRecipeGroups"
+                    :key="g.typeKey"
+                    :name="g.typeKey"
+                    class="q-pa-md"
+                  >
+                    <div class="column q-gutter-md">
+                      <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                        <recipe-viewer
+                          :recipe="recipesById.get(rid)!"
+                          :recipe-type="recipeTypesByKey.get(recipesById.get(rid)!.type)!"
+                          :item-defs-by-key-hash="itemDefsByKeyHash"
+                          @item-click="openDialogByItemKey"
+                        />
+                      </q-card>
+                    </div>
+                  </q-tab-panel>
+                </q-tab-panels>
+              </div>
+            </div>
+            <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
           </div>
-          <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
         </q-scroll-area>
       </q-card>
     </q-dialog>
@@ -429,8 +540,13 @@ import {
 } from 'src/jei/indexing/buildIndex';
 import StackView from 'src/jei/components/StackView.vue';
 import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
+import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
+import type {
+  PlannerInitialState,
+  PlannerLiveState,
+  PlannerSavePayload,
+} from 'src/jei/planner/plannerUi';
 import { itemKeyHash } from 'src/jei/indexing/key';
-
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
@@ -451,6 +567,24 @@ const selectedKeyHash = ref<string | null>(null);
 const hoveredKeyHash = ref<string | null>(null);
 const filterText = ref('');
 const favorites = ref<Set<string>>(new Set());
+type SavedPlan = {
+  id: string;
+  name: string;
+  rootItemKey: ItemKey;
+  rootKeyHash: string;
+  targetAmount: number;
+  selectedRecipeIdByItemKeyHash: Record<string, string>;
+  selectedItemIdByTagId: Record<string, string>;
+  createdAt: number;
+};
+
+const savedPlans = ref<SavedPlan[]>([]);
+const plannerInitialState = ref<PlannerInitialState | null>(null);
+const plannerLiveState = ref<PlannerLiveState>({
+  targetAmount: 1,
+  selectedRecipeIdByItemKeyHash: {},
+  selectedItemIdByTagId: {},
+});
 const historyKeyHashes = ref<string[]>([]);
 
 const filterDisabled = computed(() => loading.value || !!error.value);
@@ -468,8 +602,18 @@ const pageSize = ref(120);
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
 const navStack = ref<ItemKey[]>([]);
-const activeTab = ref<'recipes' | 'uses'>('recipes');
-const activeTypeKey = ref('');
+const activeTab = ref<'recipes' | 'uses' | 'planner'>('recipes');
+const lastRecipeTab = ref<'recipes' | 'uses'>('recipes');
+const activeRecipesTypeKey = ref('');
+const activeUsesTypeKey = ref('');
+const activeTypeKey = computed({
+  get: () =>
+    lastRecipeTab.value === 'recipes' ? activeRecipesTypeKey.value : activeUsesTypeKey.value,
+  set: (v: string) => {
+    if (lastRecipeTab.value === 'recipes') activeRecipesTypeKey.value = v;
+    else activeUsesTypeKey.value = v;
+  },
+});
 
 const itemDefsByKeyHash = computed<Record<string, ItemDef>>(() => {
   const map = index.value?.itemsByKeyHash;
@@ -823,6 +967,8 @@ async function reloadPack(packId: string) {
     pack.value = p;
     index.value = buildJeiIndex(p);
     favorites.value = loadFavorites(p.manifest.packId);
+    savedPlans.value = loadPlans(p.manifest.packId);
+    plannerInitialState.value = null;
     selectedKeyHash.value = filteredItems.value[0]?.keyHash ?? null;
 
     // 等待 DOM 渲染（v-else 切换显示列表）
@@ -867,9 +1013,17 @@ const consumingRecipeIds = computed(() => {
   return recipesConsumingItem(index.value, currentItemKey.value);
 });
 
-const activeRecipeIds = computed(() =>
-  activeTab.value === 'recipes' ? producingRecipeIds.value : consumingRecipeIds.value,
+watch(
+  activeTab,
+  (t) => {
+    if (t === 'recipes' || t === 'uses') lastRecipeTab.value = t;
+  },
+  { immediate: true },
 );
+
+const activeRecipeIds = computed(() => {
+  return lastRecipeTab.value === 'recipes' ? producingRecipeIds.value : consumingRecipeIds.value;
+});
 
 type RecipeGroup = { typeKey: string; label: string; recipeIds: string[] };
 
@@ -891,6 +1045,34 @@ const activeRecipeGroups = computed<RecipeGroup[]>(() => {
   return groups;
 });
 
+const preferredRecipeTypeKey = computed(() => {
+  if (!index.value || !currentItemKey.value) return null;
+  const rootHash = itemKeyHash(currentItemKey.value);
+  const rid = plannerLiveState.value.selectedRecipeIdByItemKeyHash[rootHash];
+  if (!rid) return null;
+  const r = index.value.recipesById.get(rid);
+  return r?.type ?? null;
+});
+
+const typeMachineIcons = computed(() => {
+  const groups = (() => {
+    const preferred = preferredRecipeTypeKey.value;
+    if (!preferred) return activeRecipeGroups.value;
+    if (!activeRecipeGroups.value.some((g) => g.typeKey === preferred))
+      return activeRecipeGroups.value;
+    return activeRecipeGroups.value.filter((g) => g.typeKey === preferred);
+  })();
+
+  return groups
+    .map((g) => {
+      const rt = recipeTypesByKey.value.get(g.typeKey);
+      const machineItemId = rt?.machine?.id;
+      if (!machineItemId) return null;
+      return { typeKey: g.typeKey, machineItemId };
+    })
+    .filter((v): v is { typeKey: string; machineItemId: string } => !!v);
+});
+
 watch(
   () => [activeTab.value, currentItemKey.value, activeRecipeGroups.value] as const,
   () => {
@@ -898,7 +1080,15 @@ watch(
       activeTypeKey.value = '';
       return;
     }
-    if (!activeRecipeGroups.value.some((g) => g.typeKey === activeTypeKey.value)) {
+    if (
+      !activeTypeKey.value ||
+      !activeRecipeGroups.value.some((g) => g.typeKey === activeTypeKey.value)
+    ) {
+      const preferred = preferredRecipeTypeKey.value;
+      if (preferred && activeRecipeGroups.value.some((g) => g.typeKey === preferred)) {
+        activeTypeKey.value = preferred;
+        return;
+      }
       const first = activeRecipeGroups.value[0];
       if (first) activeTypeKey.value = first.typeKey;
     }
@@ -906,12 +1096,13 @@ watch(
   { immediate: true },
 );
 
-function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' = 'recipes') {
+function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' | 'planner' = 'recipes') {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
   selectedKeyHash.value = keyHash;
   navStack.value = [def.key];
   activeTab.value = tab;
+  plannerInitialState.value = null;
   dialogOpen.value = settingsStore.recipeViewMode === 'dialog';
   pushHistoryKeyHash(keyHash);
 }
@@ -919,6 +1110,7 @@ function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' = 'recipes
 function openDialogByItemKey(key: ItemKey) {
   navStack.value = [...navStack.value, key];
   activeTab.value = 'recipes';
+  plannerInitialState.value = null;
   pushHistoryKeyHash(itemKeyHash(key));
 }
 
@@ -961,6 +1153,11 @@ function onKeyDown(e: KeyboardEvent) {
       activeTab.value = 'uses';
       return;
     }
+    if (key === 'p' || key === 'P') {
+      e.preventDefault();
+      activeTab.value = 'planner';
+      return;
+    }
     return;
   }
 
@@ -971,6 +1168,9 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (key === 'u' || key === 'U') {
     e.preventDefault();
     openDialogByKeyHash(hoveredKeyHash.value, 'uses');
+  } else if (key === 'p' || key === 'P') {
+    e.preventDefault();
+    openDialogByKeyHash(hoveredKeyHash.value, 'planner');
   } else if (key === 'a' || key === 'A') {
     e.preventDefault();
     toggleFavorite(hoveredKeyHash.value);
@@ -979,6 +1179,103 @@ function onKeyDown(e: KeyboardEvent) {
 
 function favoritesStorageKey(packId: string) {
   return `jei.favorites.${packId}`;
+}
+
+function plansStorageKey(packId: string) {
+  return `jei.plans.${packId}`;
+}
+
+function loadPlans(packId: string): SavedPlan[] {
+  const raw = localStorage.getItem(plansStorageKey(packId));
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((v) => {
+        if (!v || typeof v !== 'object') return null;
+        const obj = v as Record<string, unknown>;
+        const id = typeof obj.id === 'string' ? obj.id : '';
+        const name = typeof obj.name === 'string' ? obj.name : '';
+        const rootItemKey = obj.rootItemKey as ItemKey | undefined;
+        const rootKeyHash = typeof obj.rootKeyHash === 'string' ? obj.rootKeyHash : '';
+        const targetAmount =
+          typeof obj.targetAmount === 'number' ? obj.targetAmount : Number(obj.targetAmount);
+        const selectedRecipeIdByItemKeyHash =
+          (obj.selectedRecipeIdByItemKeyHash as Record<string, string> | undefined) ?? {};
+        const selectedItemIdByTagId =
+          (obj.selectedItemIdByTagId as Record<string, string> | undefined) ?? {};
+        const createdAt = typeof obj.createdAt === 'number' ? obj.createdAt : 0;
+        if (!id || !name || !rootItemKey?.id || !rootKeyHash || !Number.isFinite(targetAmount))
+          return null;
+        return {
+          id,
+          name,
+          rootItemKey,
+          rootKeyHash,
+          targetAmount,
+          selectedRecipeIdByItemKeyHash,
+          selectedItemIdByTagId,
+          createdAt,
+        } satisfies SavedPlan;
+      })
+      .filter((p): p is SavedPlan => !!p)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  } catch {
+    return [];
+  }
+}
+
+function savePlans(packId: string, plans: SavedPlan[]) {
+  localStorage.setItem(plansStorageKey(packId), JSON.stringify(plans));
+}
+
+function newPlanId() {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c?.randomUUID) return c.randomUUID();
+  return `plan_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function onPlannerStateChange(s: PlannerLiveState) {
+  plannerLiveState.value = s;
+}
+
+function savePlannerPlan(payload: PlannerSavePayload) {
+  const packId = pack.value?.manifest.packId ?? 'default';
+  const plan: SavedPlan = {
+    id: newPlanId(),
+    name: payload.name,
+    rootItemKey: payload.rootItemKey,
+    rootKeyHash: itemKeyHash(payload.rootItemKey),
+    targetAmount: payload.targetAmount,
+    selectedRecipeIdByItemKeyHash: payload.selectedRecipeIdByItemKeyHash,
+    selectedItemIdByTagId: payload.selectedItemIdByTagId,
+    createdAt: Date.now(),
+  };
+  const next = [plan, ...savedPlans.value];
+  savedPlans.value = next;
+  savePlans(packId, next);
+}
+
+function openSavedPlan(p: SavedPlan) {
+  selectedKeyHash.value = p.rootKeyHash;
+  navStack.value = [p.rootItemKey];
+  activeTab.value = 'planner';
+  plannerInitialState.value = {
+    loadKey: `${p.id}:${Date.now()}`,
+    targetAmount: p.targetAmount,
+    selectedRecipeIdByItemKeyHash: p.selectedRecipeIdByItemKeyHash,
+    selectedItemIdByTagId: p.selectedItemIdByTagId,
+  };
+  dialogOpen.value = settingsStore.recipeViewMode === 'dialog';
+  pushHistoryKeyHash(p.rootKeyHash);
+}
+
+function deleteSavedPlan(id: string) {
+  const packId = pack.value?.manifest.packId ?? 'default';
+  const next = savedPlans.value.filter((p) => p.id !== id);
+  savedPlans.value = next;
+  savePlans(packId, next);
 }
 
 function loadFavorites(packId: string): Set<string> {
@@ -1135,6 +1432,19 @@ function normalizeSearchTagId(raw: string): string {
   min-height: 0;
 }
 
+.jei-plans__head {
+  padding: 2px 2px 6px 2px;
+  font-weight: 600;
+}
+
+.jei-plans__list {
+  padding: 0;
+}
+
+.jei-plans__item :deep(.q-item__section--avatar) {
+  min-width: 38px;
+}
+
 .jei-debug .jei-list__scroll {
   overflow: auto;
 }
@@ -1284,6 +1594,34 @@ function normalizeSearchTagId(raw: string): string {
 }
 
 .jei-dialog__type-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.jei-type-layout {
+  display: flex;
+  min-height: 0;
+}
+
+.jei-type-sidebar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 6px 8px 10px;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.jei-type-sidebar__btn {
+  padding: 0;
+  min-height: 0;
+  border-radius: 8px;
+}
+
+.jei-type-main {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   min-height: 0;

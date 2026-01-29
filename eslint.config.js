@@ -4,6 +4,7 @@ import pluginVue from 'eslint-plugin-vue';
 import pluginQuasar from '@quasar/app-vite/eslint';
 import { defineConfigWithVueTs, vueTsConfigs } from '@vue/eslint-config-typescript';
 import prettierSkipFormatting from '@vue/eslint-config-prettier/skip-formatting';
+import tsParser from '@typescript-eslint/parser';
 
 export default defineConfigWithVueTs(
   {
@@ -43,6 +44,16 @@ export default defineConfigWithVueTs(
   },
   // https://github.com/vuejs/eslint-config-typescript
   vueTsConfigs.recommendedTypeChecked,
+
+  {
+    files: ['**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: tsParser,
+        extraFileExtensions: ['.vue'],
+      },
+    },
+  },
 
   {
     languageOptions: {

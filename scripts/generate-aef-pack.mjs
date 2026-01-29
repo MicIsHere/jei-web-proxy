@@ -42,6 +42,11 @@ function parseAmount(v) {
   return 1;
 }
 
+function recipeProducers(r) {
+  if (Array.isArray(r.producers) && r.producers.length) return r.producers;
+  return ['unknown'];
+}
+
 function buildSlots(maxIn, maxOut, maxCat) {
   const slots = [];
 
@@ -96,6 +101,7 @@ function main() {
   const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
 
   const itemsRaw = Array.isArray(data.items) ? data.items : [];
+  const rawItemNameById = new Map(itemsRaw.map((it) => [it.id, it.name ?? it.id]));
   const items = itemsRaw.map((it) => {
     const tags = [];
     if (it.category) tags.push(it.category);
@@ -128,25 +134,39 @@ function main() {
 
   const recipesRaw = Array.isArray(data.recipes) ? data.recipes : [];
 
-  const maxByCategory = new Map();
+  const maxByMachine = new Map();
   for (const r of recipesRaw) {
-    const cat = r.category ?? 'unknown';
     const inCount = Object.keys(r.in ?? {}).length;
     const outCount = Object.keys(r.out ?? {}).length;
-    const catCount = Object.keys(r.catalyst ?? {}).length + (Array.isArray(r.producers) ? r.producers.length : 0);
-    const cur = maxByCategory.get(cat) ?? { in: 0, out: 0, cat: 0 };
-    cur.in = Math.max(cur.in, inCount);
-    cur.out = Math.max(cur.out, outCount);
-    cur.cat = Math.max(cur.cat, catCount);
-    maxByCategory.set(cat, cur);
+    const catCount = Object.keys(r.catalyst ?? {}).length;
+    for (const producerId of recipeProducers(r)) {
+      const cur = maxByMachine.get(producerId) ?? { in: 0, out: 0, cat: 0 };
+      cur.in = Math.max(cur.in, inCount);
+      cur.out = Math.max(cur.out, outCount);
+      cur.cat = Math.max(cur.cat, catCount);
+      maxByMachine.set(producerId, cur);
+    }
   }
 
-  const recipeTypes = Array.from(maxByCategory.entries()).map(([cat, max]) => {
-    const displayName = categoryNameById.get(cat) ?? cat;
+  const recipeTypes = Array.from(maxByMachine.entries()).map(([producerId, max]) => {
+    const displayName =
+      producerId === 'unknown'
+        ? 'Unknown'
+        : rawItemNameById.get(producerId) ??
+          categoryNameById.get(producerId) ??
+          producerId;
     return {
-      key: `aef:category/${cat}`,
+      key: `aef:machine/${producerId}`,
       displayName,
       renderer: 'slot_layout',
+      ...(producerId !== 'unknown'
+        ? {
+          machine: {
+            id: namespacedItemId(producerId),
+            name: displayName,
+          },
+        }
+        : {}),
       slots: buildSlots(max.in, max.out, max.cat),
       paramSchema: {
         time: { displayName: 'Time', unit: 's', format: 'duration' },
@@ -160,31 +180,28 @@ function main() {
 
   const recipes = [];
   for (const r of recipesRaw) {
-    const slotContents = {};
+    const baseSlotContents = {};
 
     const ins = Object.entries(r.in ?? {}).sort(([a], [b]) => a.localeCompare(b));
     ins.forEach(([id, amt], idx) => {
-      slotContents[`in${idx + 1}`] = { kind: 'item', id: namespacedItemId(id), amount: parseAmount(amt) };
+      baseSlotContents[`in${idx + 1}`] = { kind: 'item', id: namespacedItemId(id), amount: parseAmount(amt) };
     });
 
     const outs = Object.entries(r.out ?? {}).sort(([a], [b]) => a.localeCompare(b));
     outs.forEach(([id, amt], idx) => {
-      slotContents[`out${idx + 1}`] = { kind: 'item', id: namespacedItemId(id), amount: parseAmount(amt) };
+      baseSlotContents[`out${idx + 1}`] = { kind: 'item', id: namespacedItemId(id), amount: parseAmount(amt) };
     });
 
-    const cats = [];
-    if (r.catalyst) {
-      Object.entries(r.catalyst).forEach(([id, amt]) => {
-        cats.push({ id, amt });
-      });
-    }
-    if (Array.isArray(r.producers)) {
-      r.producers.forEach((id) => cats.push({ id, amt: 1 }));
-    }
+    const cats = Object.entries(r.catalyst ?? {}).map(([id, amt]) => ({ id, amt }));
+    const catalystSlotContents = {};
     cats
       .sort((a, b) => a.id.localeCompare(b.id))
       .forEach(({ id, amt }, idx) => {
-        slotContents[`cat${idx + 1}`] = { kind: 'item', id: namespacedItemId(id), amount: parseAmount(amt) };
+        catalystSlotContents[`cat${idx + 1}`] = {
+          kind: 'item',
+          id: namespacedItemId(id),
+          amount: parseAmount(amt),
+        };
       });
 
     const params = {};
@@ -192,12 +209,15 @@ function main() {
     if (r.usage !== undefined) params.usage = parseAmount(r.usage);
     if (r.cost !== undefined) params.cost = parseAmount(r.cost);
 
-    recipes.push({
-      id: `aef:${r.id}`,
-      type: `aef:category/${r.category ?? 'unknown'}`,
-      slotContents,
-      ...(Object.keys(params).length ? { params } : {}),
-    });
+    for (const producerId of recipeProducers(r)) {
+      const slotContents = { ...baseSlotContents, ...catalystSlotContents };
+      recipes.push({
+        id: `aef:${r.id}@${producerId}`,
+        type: `aef:machine/${producerId}`,
+        slotContents,
+        ...(Object.keys(params).length ? { params } : {}),
+      });
+    }
   }
 
   const tagValuesByTagId = new Map();
