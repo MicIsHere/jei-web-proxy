@@ -461,12 +461,123 @@
           :disable="filterDisabled"
           placeholder="输入名字过滤…（支持 @itemid/@gameid/@tag）"
           class="col"
-        />
+        >
+          <template #append>
+            <q-icon
+              v-if="filterText"
+              name="filter_list"
+              class="cursor-pointer"
+              color="primary"
+              @click="filterDialogOpen = true"
+            />
+            <q-btn
+              v-else
+              flat
+              round
+              dense
+              icon="tune"
+              color="grey-7"
+              @click="filterDialogOpen = true"
+            />
+          </template>
+        </q-input>
         <q-btn flat round icon="settings" @click="settingsOpen = true" />
       </div>
     </div>
 
     <pre v-if="settingsStore.debugLayout" class="jei-debug-overlay">{{ debugText }}</pre>
+
+    <!-- 过滤器对话框 -->
+    <q-dialog v-model="filterDialogOpen">
+      <q-card style="min-width: 400px; max-width: 500px">
+        <q-card-section>
+          <div class="text-h6">高级过滤器</div>
+        </q-card-section>
+
+        <q-card-section class="q-pt-none column q-gutter-sm">
+          <q-input
+            v-model="filterForm.text"
+            dense
+            outlined
+            clearable
+            label="物品名称"
+            placeholder="输入物品名称关键词"
+          />
+          <q-select
+            v-model="filterForm.itemId"
+            :options="availableItemIdsFiltered.length > 0 ? availableItemIdsFiltered : availableItemIds.slice(0, 50)"
+            dense
+            outlined
+            clearable
+            label="物品 ID"
+            placeholder="选择或输入物品 ID"
+            use-input
+            input-debounce="0"
+            :input-value="filterForm.itemId"
+            @input-value="filterForm.itemId = $event"
+            @filter="filterItemIds"
+          />
+          <q-select
+            v-model="filterForm.gameId"
+            :options="availableGameIdsFiltered.length > 0 ? availableGameIdsFiltered : availableGameIds"
+            dense
+            outlined
+            clearable
+            label="命名空间"
+            placeholder="选择或输入命名空间"
+            use-input
+            input-debounce="0"
+            :input-value="filterForm.gameId"
+            @input-value="filterForm.gameId = $event"
+            @filter="filterGameIds"
+          />
+          <div class="column q-gutter-xs">
+            <div class="text-subtitle2">标签</div>
+            <div class="row q-gutter-sm items-center">
+              <q-select
+                v-for="(tag, idx) in filterForm.tags"
+                :key="idx"
+                :model-value="tag"
+                :options="filteredTagsOptions"
+                dense
+                outlined
+                clearable
+                label="标签"
+                placeholder="选择或输入标签"
+                class="col"
+                use-input
+                input-debounce="0"
+                @input-value="filterForm.tags[idx] = $event"
+                @filter="(val, upd) => filterTags(val, upd, idx)"
+                @update:model-value="filterForm.tags[idx] = $event || ''"
+              >
+                <template #append>
+                  <q-icon
+                    name="close"
+                    class="cursor-pointer"
+                    @click="filterForm.tags.splice(idx, 1)"
+                  />
+                </template>
+              </q-select>
+              <q-btn
+                flat
+                round
+                dense
+                icon="add"
+                color="primary"
+                @click="filterForm.tags.push('')"
+              />
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="清空" color="grey-7" @click="resetFilterForm" />
+          <q-btn flat label="取消" color="grey-7" v-close-popup />
+          <q-btn flat label="应用" color="primary" @click="applyFilter" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <q-dialog v-model="settingsOpen">
       <q-card style="min-width: 300px">
@@ -785,6 +896,14 @@ const gridColumns = 2;
 
 const pageSize = ref(120);
 
+const filterDialogOpen = ref(false);
+const filterForm = ref({
+  text: '',
+  itemId: '',
+  gameId: '',
+  tags: [] as string[],
+});
+
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
 const navStack = ref<ItemKey[]>([]);
@@ -828,6 +947,37 @@ type ParsedSearch = {
 };
 
 const parsedSearch = computed<ParsedSearch>(() => parseSearch(filterText.value));
+
+// 所有可用的标签 ID
+const availableTags = computed(() => {
+  const tags = new Set<string>();
+  for (const tagIds of index.value?.tagIdsByItemId.values() ?? []) {
+    for (const tag of tagIds) {
+      tags.add(tag);
+    }
+  }
+  return Array.from(tags).sort();
+});
+
+// 所有可用的物品 ID（去重）
+const availableItemIds = computed(() => {
+  const ids = new Set<string>();
+  for (const def of index.value?.itemsByKeyHash.values() ?? []) {
+    ids.add(def.key.id);
+  }
+  return Array.from(ids).sort();
+});
+
+// 所有可用的命名空间
+const availableGameIds = computed(() => {
+  const namespaces = new Set<string>();
+  for (const id of availableItemIds.value) {
+    const parts = id.includes(':') ? id.split(':') : id.split('.');
+    const ns = parts[0];
+    if (ns) namespaces.add(ns);
+  }
+  return Array.from(namespaces).sort();
+});
 
 const filteredItems = computed(() => {
   const map = index.value?.itemsByKeyHash;
@@ -1660,6 +1810,105 @@ function pushHistoryKeyHash(keyHash: string) {
   historyKeyHashes.value = next;
 }
 
+function applyFilter() {
+  const parts: string[] = [];
+  const f = filterForm.value;
+
+  if (f.text) parts.push(f.text);
+  if (f.itemId) parts.push(`@id:${f.itemId}`);
+  if (f.gameId) parts.push(`@game:${f.gameId}`);
+  for (const tag of f.tags) {
+    const t = tag.trim();
+    if (t) parts.push(`@tag:${t}`);
+  }
+
+  filterText.value = parts.join(' ');
+}
+
+function resetFilterForm() {
+  filterForm.value = {
+    text: '',
+    itemId: '',
+    gameId: '',
+    tags: [],
+  };
+}
+
+// 从 filterText 解析并填充 filterForm
+function populateFilterFormFromText() {
+  const search = parsedSearch.value;
+  filterForm.value = {
+    text: search.text.join(' ') || '',
+    itemId: search.itemId.join(' ') || '',
+    gameId: search.gameId.join(' ') || '',
+    tags: [...search.tag],
+  };
+}
+
+watch(filterDialogOpen, (isOpen) => {
+  if (isOpen) populateFilterFormFromText();
+});
+
+// 选择器过滤函数
+const availableItemIdsFiltered = ref<string[]>([]);
+const availableGameIdsFiltered = ref<string[]>([]);
+const availableTagsFiltered = ref<string[]>([]);
+
+function filterItemIds(val: string, update: (callback: () => void) => void) {
+  if (val === '') {
+    update(() => {
+      availableItemIdsFiltered.value = availableItemIds.value.slice(0, 50);
+    });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    availableItemIdsFiltered.value = availableItemIds.value.filter(
+      v => v.toLowerCase().includes(needle)
+    ).slice(0, 50);
+  });
+}
+
+function filterGameIds(val: string, update: (callback: () => void) => void) {
+  if (val === '') {
+    update(() => {
+      availableGameIdsFiltered.value = availableGameIds.value;
+    });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    availableGameIdsFiltered.value = availableGameIds.value.filter(
+      v => v.toLowerCase().includes(needle)
+    );
+  });
+}
+
+function filterTags(val: string, update: (callback: () => void) => void, idx: number) {
+  if (val === '') {
+    update(() => {
+      // 排除已选择的标签
+      const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
+      availableTagsFiltered.value = availableTags.value.filter(t => !selected.has(t)).slice(0, 50);
+    });
+    return;
+  }
+  update(() => {
+    const needle = val.toLowerCase();
+    const selected = new Set(filterForm.value.tags.filter((_, i) => i !== idx));
+    availableTagsFiltered.value = availableTags.value.filter(
+      v => v.toLowerCase().includes(needle) && !selected.has(v)
+    ).slice(0, 50);
+  });
+}
+
+// 用于标签选择器的选项
+const filteredTagsOptions = computed(() => {
+  return availableTagsFiltered.value.length > 0
+    ? availableTagsFiltered.value
+    : availableTags.value.slice(0, 50);
+});
+
 function parseSearch(input: string): ParsedSearch {
   const tokens = input.trim().split(/\s+/).filter(Boolean);
   const out: ParsedSearch = { text: [], itemId: [], gameId: [], tag: [] };
@@ -1684,12 +1933,18 @@ function parseSearch(input: string): ParsedSearch {
     }
 
     const v = (value ?? '').trim();
-    if (!v) continue;
 
-    if (name === 'itemid' || name === 'id') out.itemId.push(v.toLowerCase());
-    else if (name === 'gameid' || name === 'game') out.gameId.push(v.toLowerCase());
-    else if (name === 'tag' || name === 't') out.tag.push(v.toLowerCase());
-    else {
+    if (name === 'itemid' || name === 'id') {
+      if (!v) continue;
+      out.itemId.push(v.toLowerCase());
+    } else if (name === 'gameid' || name === 'game') {
+      if (!v) continue;
+      out.gameId.push(v.toLowerCase());
+    } else if (name === 'tag' || name === 't') {
+      if (!v) continue;
+      out.tag.push(v.toLowerCase());
+    } else {
+      // 无前缀的 @xxx 直接作为标签包含搜索
       out.tag.push(raw.toLowerCase());
     }
   }
@@ -1718,21 +1973,15 @@ function matchesSearch(def: ItemDef, search: ParsedSearch): boolean {
     if (!gid.includes(t)) return false;
   }
   for (const t of search.tag) {
-    const tagId = normalizeSearchTagId(t);
-    if (!tagId) return false;
     const tags = index.value?.tagIdsByItemId.get(def.key.id);
-    if (!tags?.has(tagId)) return false;
+    if (!tags) return false;
+    // 使用包含匹配：检查是否有任何标签包含搜索词
+    const matchFound = Array.from(tags).some(tagId => tagId.toLowerCase().includes(t.toLowerCase()));
+    if (!matchFound) return false;
   }
   return true;
 }
 
-function normalizeSearchTagId(raw: string): string {
-  const s = raw.startsWith('#') ? raw.slice(1) : raw;
-  if (!s) return '';
-  if (s.includes(':')) return s;
-  const ns = pack.value?.manifest.gameId ?? 'minecraft';
-  return `${ns}:${s}`;
-}
 </script>
 
 <style scoped>
