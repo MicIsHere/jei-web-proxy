@@ -1,0 +1,59 @@
+[
+  {
+    "id": "demo:craft_iron_pickaxe",
+    "type": "demo.base.crafting_grid",
+    "slotContents": {
+      "in1": { "kind": "item", "id": "demo.base.iron_ingot", "amount": 1 },
+      "in2": { "kind": "item", "id": "demo.base.iron_ingot", "amount": 1 },
+      "in3": { "kind": "item", "id": "demo.base.iron_ingot", "amount": 1 },
+      "in5": { "kind": "item", "id": "demo.base.stick", "amount": 1 },
+      "in8": { "kind": "item", "id": "demo.base.stick", "amount": 1 },
+      "out": { "kind": "item", "id": "demo.base.iron_pickaxe", "amount": 1 }
+    }
+  },
+  {
+    "id": "demo:crusher_iron_dust",
+    "type": "demo.base.crusher",
+    "slotContents": {
+      "in": { "kind": "item", "id": "demo.base.iron_ore", "amount": 1 },
+      "fluid": { "kind": "fluid", "id": "demo.base.water", "amount": 1000, "unit": "mB" },
+      "out": { "kind": "item", "id": "demo.base.iron_dust", "amount": 2 }
+    },
+    "params": {
+      "duration": 160,
+      "energy": 5000
+    }
+  },
+  {
+    "id": "demo:worldgen_iron_ore",
+    "type": "demo.worldgen.ore",
+    "slotContents": {
+      "out": { "kind": "item", "id": "demo.base.iron_ore", "amount": 1 }
+    },
+    "params": {
+      "dimensions": ["overworld"],
+      "biomes": ["#mountain", "#forest"],
+      "yMin": -32,
+      "yMax": 64,
+      "veinSize": 8,
+      "frequency": 20
+    }
+  },
+  {
+    "id": "demo:craft_magic_pickaxe",
+    "type": "demo.base.crafting_grid",
+    "inlineItems": [
+      { "key": { "id": "demo.base.gem" }, "name": "Gem", "tags": ["material"] }
+    ],
+    "slotContents": {
+      "in1": { "kind": "item", "id": "demo.base.gem", "amount": 1 },
+      "in5": { "kind": "item", "id": "demo.base.iron_pickaxe", "amount": 1 },
+      "out": {
+        "kind": "item",
+        "id": "demo.base.magic_pickaxe",
+        "amount": 1,
+        "nbt": { "enchants": [{ "id": "efficiency", "lvl": 3 }] }
+      }
+    }
+  }
+]

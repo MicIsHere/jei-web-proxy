@@ -1,0 +1,12 @@
+{
+  "packId": "demo",
+  "gameId": "demo",
+  "displayName": "Demo Game Pack",
+  "version": "0.1.0",
+  "files": {
+    "items": "items.json",
+    "tags": "tags.json",
+    "recipeTypes": "recipeTypes.json",
+    "recipes": "recipes.json"
+  }
+}

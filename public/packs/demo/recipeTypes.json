@@ -1,0 +1,50 @@
+[
+  {
+    "key": "demo.base.crafting_grid",
+    "displayName": "Crafting",
+    "renderer": "slot_layout",
+    "slots": [
+      { "slotId": "in1", "io": "input", "accept": ["item", "tag"], "x": 0, "y": 0, "label": "In" },
+      { "slotId": "in2", "io": "input", "accept": ["item", "tag"], "x": 1, "y": 0, "label": "In" },
+      { "slotId": "in3", "io": "input", "accept": ["item", "tag"], "x": 2, "y": 0, "label": "In" },
+      { "slotId": "in4", "io": "input", "accept": ["item", "tag"], "x": 0, "y": 1, "label": "In" },
+      { "slotId": "in5", "io": "input", "accept": ["item", "tag"], "x": 1, "y": 1, "label": "In" },
+      { "slotId": "in6", "io": "input", "accept": ["item", "tag"], "x": 2, "y": 1, "label": "In" },
+      { "slotId": "in7", "io": "input", "accept": ["item", "tag"], "x": 0, "y": 2, "label": "In" },
+      { "slotId": "in8", "io": "input", "accept": ["item", "tag"], "x": 1, "y": 2, "label": "In" },
+      { "slotId": "in9", "io": "input", "accept": ["item", "tag"], "x": 2, "y": 2, "label": "In" },
+      { "slotId": "out", "io": "output", "accept": ["item"], "x": 4, "y": 1, "label": "Out" }
+    ]
+  },
+  {
+    "key": "demo.base.crusher",
+    "displayName": "Crusher",
+    "renderer": "slot_layout",
+    "machine": { "id": "demo.base.crusher", "name": "Crusher" },
+    "slots": [
+      { "slotId": "in", "io": "input", "accept": ["item", "tag"], "x": 0, "y": 0, "label": "Input" },
+      { "slotId": "fluid", "io": "input", "accept": ["fluid"], "x": 0, "y": 1, "label": "Fluid" },
+      { "slotId": "out", "io": "output", "accept": ["item"], "x": 2, "y": 0, "label": "Output" }
+    ],
+    "paramSchema": {
+      "duration": { "displayName": "Time", "unit": "t", "format": "duration", "default": 200 },
+      "energy": { "displayName": "Energy", "unit": "FE", "format": "integer" }
+    }
+  },
+  {
+    "key": "demo.worldgen.ore",
+    "displayName": "World Generation",
+    "renderer": "worldgen_panel",
+    "slots": [
+      { "slotId": "out", "io": "output", "accept": ["item"], "x": 0, "y": 0, "label": "Ore" }
+    ],
+    "paramSchema": {
+      "dimensions": { "displayName": "Dimensions" },
+      "biomes": { "displayName": "Biomes" },
+      "yMin": { "displayName": "Y Min", "format": "integer" },
+      "yMax": { "displayName": "Y Max", "format": "integer" },
+      "veinSize": { "displayName": "Vein Size", "format": "integer" },
+      "frequency": { "displayName": "Frequency", "format": "integer" }
+    }
+  }
+]

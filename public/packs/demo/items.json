@@ -1,0 +1,35 @@
+[
+  {
+    "key": { "id": "demo.base.iron_ore" },
+    "name": "Iron Ore",
+    "tags": ["ore", "worldgen"]
+  },
+  {
+    "key": { "id": "demo.base.iron_ingot" },
+    "name": "Iron Ingot",
+    "tags": ["ingot"]
+  },
+  {
+    "key": { "id": "demo.base.iron_dust" },
+    "name": "Iron Dust",
+    "tags": ["dust"]
+  },
+  {
+    "key": { "id": "demo.base.stick" },
+    "name": "Stick",
+    "tags": ["wood"]
+  },
+  {
+    "key": { "id": "demo.base.iron_pickaxe" },
+    "name": "Iron Pickaxe",
+    "tags": ["tool"]
+  },
+  {
+    "key": {
+      "id": "demo.base.magic_pickaxe",
+      "nbt": { "enchants": [{ "id": "efficiency", "lvl": 3 }] }
+    },
+    "name": "Magic Pickaxe (Efficiency III)",
+    "tags": ["tool", "enchanted"]
+  }
+]

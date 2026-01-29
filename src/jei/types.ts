@@ -1,0 +1,123 @@
+export type ItemId = string;
+export type FluidId = string;
+
+export type SlotIO = 'input' | 'output' | 'catalyst';
+export type StackKind = 'item' | 'tag' | 'fluid';
+
+export interface ItemKey {
+  id: ItemId;
+  meta?: number | string;
+  nbt?: unknown;
+}
+
+export interface ItemDef {
+  key: ItemKey;
+  name: string;
+  icon?: string;
+  tags?: string[];
+  source?: string;
+  description?: string;
+}
+
+export interface StackItem {
+  kind: 'item';
+  id: ItemId;
+  amount: number;
+  unit?: string;
+  meta?: number | string;
+  nbt?: unknown;
+}
+
+export interface StackTag {
+  kind: 'tag';
+  id: string;
+  amount: number;
+  unit?: string;
+}
+
+export interface StackFluid {
+  kind: 'fluid';
+  id: FluidId;
+  amount: number;
+  unit?: string;
+}
+
+export type Stack = StackItem | StackTag | StackFluid;
+export type SlotContent = Stack | Stack[];
+
+export interface SlotDef {
+  slotId: string;
+  io: SlotIO;
+  accept: StackKind[];
+  x: number;
+  y: number;
+  label?: string;
+}
+
+export interface RecipeTypeMachine {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
+export interface ParamSchemaEntry {
+  displayName: string;
+  unit?: string;
+  default?: unknown;
+  format?: 'number' | 'integer' | 'percent' | 'duration';
+}
+
+export interface RecipeTypeDef {
+  key: string;
+  displayName: string;
+  renderer: string;
+  machine?: RecipeTypeMachine;
+  slots?: SlotDef[];
+  paramSchema?: Record<string, ParamSchemaEntry>;
+  defaults?: Record<string, unknown>;
+}
+
+export interface Recipe {
+  id: string;
+  type: string;
+  slotContents: Record<string, SlotContent>;
+  params?: Record<string, unknown>;
+  inlineItems?: ItemDef[];
+}
+
+export interface TagValueObject {
+  id: string;
+  required?: boolean;
+}
+
+export type TagValue = string | TagValueObject;
+
+export interface TagDef {
+  replace?: boolean;
+  values: TagValue[];
+}
+
+export interface PackTags {
+  item?: Record<string, TagDef>;
+}
+
+export interface PackManifest {
+  packId: string;
+  gameId: string;
+  displayName: string;
+  version: string;
+  files: {
+    items?: string;
+    tags?: string;
+    recipeTypes: string;
+    recipes: string;
+  };
+}
+
+export interface PackData {
+  manifest: PackManifest;
+  items: ItemDef[];
+  tags?: PackTags;
+  recipeTypes: RecipeTypeDef[];
+  recipes: Recipe[];
+}
