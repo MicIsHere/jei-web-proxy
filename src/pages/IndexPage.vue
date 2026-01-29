@@ -122,6 +122,7 @@
             >
               <q-tab name="recipes" label="Recipes (R)" />
               <q-tab name="uses" label="Uses (U)" />
+              <q-tab name="wiki" label="Wiki (W)" />
               <q-tab name="planner" label="Planner (P)" />
             </q-tabs>
           </div>
@@ -140,7 +141,57 @@
               @save-plan="savePlannerPlan"
               @state-change="onPlannerStateChange"
             />
-            <div v-show="activeTab !== 'planner'" class="jei-dialog__type-tabs">
+            <!-- Wiki 标签页内容 -->
+            <div v-if="activeTab === 'wiki'" class="q-pa-md">
+              <div v-if="currentItemDef" class="column q-gutter-md">
+                <div class="text-h5">{{ currentItemDef.name }}</div>
+                <q-separator />
+                <div class="row q-gutter-md">
+                  <div class="col-auto">
+                    <stack-view
+                      :content="{
+                        kind: 'item',
+                        id: currentItemDef.key.id,
+                        amount: 1,
+                        ...(currentItemDef.key.meta !== undefined
+                          ? { meta: currentItemDef.key.meta }
+                          : {}),
+                        ...(currentItemDef.key.nbt !== undefined
+                          ? { nbt: currentItemDef.key.nbt }
+                          : {}),
+                      }"
+                      :item-defs-by-key-hash="itemDefsByKeyHash"
+                    />
+                  </div>
+                  <div class="col column q-gutter-sm">
+                    <div class="text-caption text-grey-8">物品 ID</div>
+                    <div class="text-body2">{{ currentItemDef.key.id }}</div>
+                    <div v-if="currentItemDef.key.meta !== undefined" class="text-caption text-grey-8 q-mt-sm">
+                      Meta
+                    </div>
+                    <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
+                      {{ currentItemDef.key.meta }}
+                    </div>
+                  </div>
+                </div>
+                <q-separator />
+                <div v-if="currentItemDef.description">
+                  <div class="text-subtitle2 q-mb-sm">描述</div>
+                  <div class="wiki-description" v-html="renderedDescription"></div>
+                </div>
+                <q-separator v-if="currentItemDef.description" />
+                <div>
+                  <div class="text-subtitle2 q-mb-sm">标签</div>
+                  <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
+                    <q-badge v-for="tag in currentItemDef.tags" :key="tag" color="grey-7">
+                      {{ tag }}
+                    </q-badge>
+                  </div>
+                  <div v-else class="text-caption text-grey-7">无标签</div>
+                </div>
+              </div>
+            </div>
+            <div v-show="activeTab === 'recipes' || activeTab === 'uses'" class="jei-dialog__type-tabs">
               <div v-if="activeRecipeGroups.length" class="jei-type-layout">
                 <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
                   <q-btn
@@ -481,6 +532,7 @@
           >
             <q-tab name="recipes" label="Recipes (R)" />
             <q-tab name="uses" label="Uses (U)" />
+            <q-tab name="wiki" label="Wiki (W)" />
             <q-tab name="planner" label="Planner (P)" />
           </q-tabs>
           <div class="jei-dialog__hint text-caption">Backspace: 返回 · Esc: 关闭</div>
@@ -500,7 +552,57 @@
             @save-plan="savePlannerPlan"
             @state-change="onPlannerStateChange"
           />
-          <div v-show="activeTab !== 'planner'" class="jei-dialog__type-tabs">
+          <!-- Wiki 标签页内容 -->
+          <div v-if="activeTab === 'wiki'" class="q-pa-md">
+            <div v-if="currentItemDef" class="column q-gutter-md">
+              <div class="text-h5">{{ currentItemDef.name }}</div>
+              <q-separator />
+              <div class="row q-gutter-md">
+                <div class="col-auto">
+                  <stack-view
+                    :content="{
+                      kind: 'item',
+                      id: currentItemDef.key.id,
+                      amount: 1,
+                      ...(currentItemDef.key.meta !== undefined
+                        ? { meta: currentItemDef.key.meta }
+                        : {}),
+                      ...(currentItemDef.key.nbt !== undefined
+                        ? { nbt: currentItemDef.key.nbt }
+                        : {}),
+                    }"
+                    :item-defs-by-key-hash="itemDefsByKeyHash"
+                  />
+                </div>
+                <div class="col column q-gutter-sm">
+                  <div class="text-caption text-grey-8">物品 ID</div>
+                  <div class="text-body2">{{ currentItemDef.key.id }}</div>
+                  <div v-if="currentItemDef.key.meta !== undefined" class="text-caption text-grey-8 q-mt-sm">
+                    Meta
+                  </div>
+                  <div v-if="currentItemDef.key.meta !== undefined" class="text-body2">
+                    {{ currentItemDef.key.meta }}
+                  </div>
+                </div>
+              </div>
+              <q-separator />
+              <div v-if="currentItemDef.description">
+                <div class="text-subtitle2 q-mb-sm">描述</div>
+                <div class="wiki-description" v-html="renderedDescription"></div>
+              </div>
+              <q-separator v-if="currentItemDef.description" />
+              <div>
+                <div class="text-subtitle2 q-mb-sm">标签</div>
+                <div v-if="currentItemDef.tags?.length" class="row q-gutter-xs">
+                  <q-badge v-for="tag in currentItemDef.tags" :key="tag" color="grey-7">
+                    {{ tag }}
+                  </q-badge>
+                </div>
+                <div v-else class="text-caption text-grey-7">无标签</div>
+              </div>
+            </div>
+          </div>
+          <div v-show="activeTab === 'recipes' || activeTab === 'uses'" class="jei-dialog__type-tabs">
             <div v-if="activeRecipeGroups.length" class="jei-type-layout">
               <div v-if="typeMachineIcons.length" class="jei-type-sidebar">
                 <q-btn
@@ -623,6 +725,7 @@ import {
 import StackView from 'src/jei/components/StackView.vue';
 import RecipeViewer from 'src/jei/components/RecipeViewer.vue';
 import CraftingPlannerView from 'src/jei/components/CraftingPlannerView.vue';
+import MarkdownIt from 'markdown-it';
 import type {
   PlannerInitialState,
   PlannerLiveState,
@@ -685,7 +788,7 @@ const pageSize = ref(120);
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
 const navStack = ref<ItemKey[]>([]);
-const activeTab = ref<'recipes' | 'uses' | 'planner'>('recipes');
+const activeTab = ref<'recipes' | 'uses' | 'wiki' | 'planner'>('recipes');
 const lastRecipeTab = ref<'recipes' | 'uses'>('recipes');
 const activeRecipesTypeKey = ref('');
 const activeUsesTypeKey = ref('');
@@ -702,6 +805,19 @@ const itemDefsByKeyHash = computed<Record<string, ItemDef>>(() => {
   const map = index.value?.itemsByKeyHash;
   if (!map) return {};
   return Object.fromEntries(map.entries());
+});
+
+// Markdown 渲染器
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+});
+
+// 渲染物品描述为 HTML
+const renderedDescription = computed(() => {
+  if (!currentItemDef.value?.description) return '';
+  return md.render(currentItemDef.value.description);
 });
 
 type ParsedSearch = {
@@ -1310,7 +1426,7 @@ watch(
   { immediate: true },
 );
 
-function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' | 'planner' = 'recipes') {
+function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' | 'wiki' | 'planner' = 'recipes') {
   const def = index.value?.itemsByKeyHash.get(keyHash);
   if (!def) return;
   selectedKeyHash.value = keyHash;
@@ -1376,6 +1492,11 @@ function onKeyDown(e: KeyboardEvent) {
       activeTab.value = 'uses';
       return;
     }
+    if (key === 'w' || key === 'W') {
+      e.preventDefault();
+      activeTab.value = 'wiki';
+      return;
+    }
     if (key === 'p' || key === 'P') {
       e.preventDefault();
       activeTab.value = 'planner';
@@ -1391,6 +1512,9 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (key === 'u' || key === 'U') {
     e.preventDefault();
     openDialogByKeyHash(hoveredKeyHash.value, 'uses');
+  } else if (key === 'w' || key === 'W') {
+    e.preventDefault();
+    openDialogByKeyHash(hoveredKeyHash.value, 'wiki');
   } else if (key === 'p' || key === 'P') {
     e.preventDefault();
     openDialogByKeyHash(hoveredKeyHash.value, 'planner');
@@ -1856,5 +1980,106 @@ function normalizeSearchTagId(raw: string): string {
   align-items: center;
   gap: 10px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.wiki-description {
+  line-height: 1.6;
+}
+
+.wiki-description :deep(h1),
+.wiki-description :deep(h2),
+.wiki-description :deep(h3),
+.wiki-description :deep(h4),
+.wiki-description :deep(h5),
+.wiki-description :deep(h6) {
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.wiki-description :deep(h1) {
+  font-size: 1.5em;
+}
+
+.wiki-description :deep(h2) {
+  font-size: 1.3em;
+}
+
+.wiki-description :deep(h3) {
+  font-size: 1.1em;
+}
+
+.wiki-description :deep(p) {
+  margin-bottom: 0.75em;
+}
+
+.wiki-description :deep(ul),
+.wiki-description :deep(ol) {
+  margin-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.wiki-description :deep(li) {
+  margin-bottom: 0.25em;
+}
+
+.wiki-description :deep(code) {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.125em 0.25em;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+.wiki-description :deep(pre) {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.75em;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 0.75em;
+}
+
+.wiki-description :deep(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.wiki-description :deep(a) {
+  color: #1976d2;
+  text-decoration: none;
+}
+
+.wiki-description :deep(a:hover) {
+  text-decoration: underline;
+}
+
+.wiki-description :deep(blockquote) {
+  border-left: 4px solid rgba(0, 0, 0, 0.12);
+  padding-left: 1em;
+  margin-left: 0;
+  color: rgba(0, 0, 0, 0.65);
+  margin-bottom: 0.75em;
+}
+
+.wiki-description :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 0.75em;
+}
+
+.wiki-description :deep(th),
+.wiki-description :deep(td) {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 0.5em;
+}
+
+.wiki-description :deep(th) {
+  background: rgba(0, 0, 0, 0.03);
+  font-weight: 600;
+}
+
+.wiki-description :deep(img) {
+  max-width: 100%;
+  height: auto;
 }
 </style>
