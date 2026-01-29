@@ -8,6 +8,8 @@
             <stack-view
               :content="recipe.slotContents[slotId]"
               :item-defs-by-key-hash="itemDefsByKeyHash"
+              variant="slot"
+              :show-name="settingsStore.recipeSlotShowName"
               @item-click="emit('item-click', $event)"
             />
           </div>
@@ -29,6 +31,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { ItemDef, ItemKey, Recipe, RecipeTypeDef } from 'src/jei/types';
+import { useSettingsStore } from 'src/stores/settings';
 import StackView from './StackView.vue';
 import RecipeParamsView from './RecipeParamsView.vue';
 
@@ -41,6 +44,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
 }>();
+
+const settingsStore = useSettingsStore();
 
 const outputSlotIds = computed(() => {
   const defs = props.recipeType.slots ?? [];

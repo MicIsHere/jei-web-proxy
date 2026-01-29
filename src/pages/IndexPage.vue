@@ -53,9 +53,88 @@
         </div>
       </q-card>
 
-      <q-card flat bordered class="jei-panel">
-        <div class="text-subtitle2">中间区域</div>
-        <div class="text-caption">右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。</div>
+      <q-card flat bordered class="jei-panel column no-wrap">
+        <template v-if="settingsStore.recipeViewMode === 'panel'">
+          <div class="jei-panel__head row items-center q-gutter-sm col-auto">
+            <div class="text-subtitle2">{{ navStack.length ? currentItemTitle : '中间区域' }}</div>
+            <q-space />
+            <q-btn
+              v-if="navStack.length > 1"
+              flat
+              round
+              dense
+              icon="arrow_back"
+              @click="goBackInDialog"
+            />
+            <q-btn v-if="navStack.length" flat round dense icon="close" @click="closeDialog" />
+          </div>
+          <div v-if="navStack.length" class="jei-panel__tabs col-auto">
+            <q-btn
+              dense
+              outline
+              :color="activeTab === 'recipes' ? 'primary' : 'grey-7'"
+              label="Recipes (R)"
+              @click="activeTab = 'recipes'"
+            />
+            <q-btn
+              dense
+              outline
+              :color="activeTab === 'uses' ? 'primary' : 'grey-7'"
+              label="Uses (U)"
+              @click="activeTab = 'uses'"
+            />
+          </div>
+          <q-separator />
+          <div v-if="navStack.length" class="col jei-panel__body">
+            <div v-if="activeRecipeGroups.length" class="jei-dialog__type-tabs">
+              <q-tabs
+                v-if="activeRecipeGroups.length > 1"
+                v-model="activeTypeKey"
+                dense
+                outside-arrows
+                mobile-arrows
+                inline-label
+                class="q-px-sm q-pt-sm"
+              >
+                <q-tab
+                  v-for="g in activeRecipeGroups"
+                  :key="g.typeKey"
+                  :name="g.typeKey"
+                  :label="`${g.label} (${g.recipeIds.length})`"
+                />
+              </q-tabs>
+              <q-separator v-if="activeRecipeGroups.length > 1" />
+
+              <q-tab-panels v-model="activeTypeKey" animated class="jei-panel__panels">
+                <q-tab-panel
+                  v-for="g in activeRecipeGroups"
+                  :key="g.typeKey"
+                  :name="g.typeKey"
+                  class="q-pa-md"
+                >
+                  <div class="column q-gutter-md">
+                    <q-card v-for="rid in g.recipeIds" :key="rid" flat bordered class="q-pa-md">
+                      <recipe-viewer
+                        :recipe="recipesById.get(rid)!"
+                        :recipe-type="recipeTypesByKey.get(recipesById.get(rid)!.type)!"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        @item-click="openDialogByItemKey"
+                      />
+                    </q-card>
+                  </div>
+                </q-tab-panel>
+              </q-tab-panels>
+            </div>
+            <div v-else class="q-pa-md text-caption">没有找到相关配方。</div>
+          </div>
+          <div v-else class="q-pa-md text-caption text-grey-7 col">
+            选择物品以查看 Recipes/Uses。
+          </div>
+        </template>
+        <template v-else>
+          <div class="text-subtitle2">中间区域</div>
+          <div class="text-caption">右侧是物品列表，左侧是收藏夹；点击物品打开悬浮窗。</div>
+        </template>
       </q-card>
 
       <q-card flat bordered class="jei-list column no-wrap">
@@ -64,7 +143,7 @@
           <div class="text-caption">pack: {{ pack?.manifest.packId }}</div>
         </div>
 
-        <div ref="listScrollEl" class="jei-list__scroll col">
+        <div ref="listScrollEl" class="jei-list__scroll col" @wheel="onListWheel">
           <div ref="listGridEl" class="jei-grid">
             <div v-if="firstPagedItem" ref="sampleCellEl">
               <q-card
@@ -239,6 +318,24 @@
             :model-value="settingsStore.debugLayout"
             @update:model-value="(v) => settingsStore.setDebugLayout(!!v)"
           />
+          <q-select
+            dense
+            outlined
+            label="合成表显示方式"
+            :options="[
+              { label: '弹窗', value: 'dialog' },
+              { label: '中间区域', value: 'panel' },
+            ]"
+            emit-value
+            map-options
+            :model-value="settingsStore.recipeViewMode"
+            @update:model-value="(v) => settingsStore.setRecipeViewMode(v as 'dialog' | 'panel')"
+          />
+          <q-toggle
+            label="合成表物品显示名字"
+            :model-value="settingsStore.recipeSlotShowName"
+            @update:model-value="(v) => settingsStore.setRecipeSlotShowName(!!v)"
+          />
         </q-card-section>
         <q-card-actions align="right">
           <q-btn flat label="关闭" color="primary" v-close-popup />
@@ -397,9 +494,6 @@ const filteredItems = computed(() => {
 
   const filtered = entries.filter((e) => matchesSearch(e.def, search));
   filtered.sort((a, b) => {
-    const af = favorites.value.has(a.keyHash) ? 1 : 0;
-    const bf = favorites.value.has(b.keyHash) ? 1 : 0;
-    if (af !== bf) return bf - af;
     return a.def.name.localeCompare(b.def.name);
   });
   return filtered;
@@ -423,6 +517,14 @@ watch(
   () => pageCount.value,
   (max) => {
     if (page.value > max) page.value = max;
+  },
+);
+
+watch(
+  () => settingsStore.recipeViewMode,
+  (mode) => {
+    if (mode === 'panel') dialogOpen.value = false;
+    if (mode === 'dialog' && navStack.value.length) dialogOpen.value = true;
   },
 );
 
@@ -672,6 +774,34 @@ onUnmounted(() => {
   resizeObserver.value?.disconnect();
 });
 
+const wheelState = ref({ lastAt: 0, acc: 0 });
+
+function wrapPage(next: number) {
+  const max = pageCount.value;
+  if (max <= 1) return 1;
+  if (next < 1) return max;
+  if (next > max) return 1;
+  return next;
+}
+
+function onListWheel(e: WheelEvent) {
+  if (loading.value || error.value) return;
+  if (e.ctrlKey) return;
+  const now = performance.now();
+  const state = wheelState.value;
+  if (now - state.lastAt > 180) state.acc = 0;
+  state.lastAt = now;
+  state.acc += e.deltaY;
+
+  const threshold = 60;
+  if (Math.abs(state.acc) < threshold) return;
+
+  const dir = state.acc > 0 ? 1 : -1;
+  state.acc = 0;
+  page.value = wrapPage(page.value + dir);
+  e.preventDefault();
+}
+
 function onWindowResize() {
   debugLog('window: resize');
   void recomputePageSize();
@@ -782,7 +912,7 @@ function openDialogByKeyHash(keyHash: string, tab: 'recipes' | 'uses' = 'recipes
   selectedKeyHash.value = keyHash;
   navStack.value = [def.key];
   activeTab.value = tab;
-  dialogOpen.value = true;
+  dialogOpen.value = settingsStore.recipeViewMode === 'dialog';
   pushHistoryKeyHash(keyHash);
 }
 
@@ -1078,6 +1208,27 @@ function normalizeSearchTagId(raw: string): string {
 .jei-panel {
   padding: 12px;
   height: 100%;
+  min-height: 0;
+}
+
+.jei-panel__head {
+  padding-bottom: 8px;
+}
+
+.jei-panel__tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.jei-panel__body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.jei-panel__panels {
+  min-height: 0;
 }
 
 .jei-bottombar {
@@ -1135,7 +1286,7 @@ function normalizeSearchTagId(raw: string): string {
 .jei-dialog__type-tabs {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  min-height: 0;
 }
 
 .jei-list__pager {

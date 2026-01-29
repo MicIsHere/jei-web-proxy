@@ -1,5 +1,12 @@
 <template>
-  <div class="stack-view" :class="{ 'stack-view--clickable': clickable }" @click="onClick">
+  <div
+    class="stack-view"
+    :class="{
+      'stack-view--clickable': clickable,
+      'stack-view--slot': props.variant === 'slot',
+    }"
+    @click="onClick"
+  >
     <div class="stack-view__main">
       <q-img v-if="iconSrc" :src="iconSrc" :ratio="1" fit="contain" class="stack-view__icon" />
       <div
@@ -11,11 +18,23 @@
       </div>
       <q-icon v-else :name="fallbackIcon" size="22px" class="stack-view__icon-fallback" />
       <div class="stack-view__text">
-        <div class="stack-view__name">{{ displayName }}</div>
-        <div class="stack-view__sub">{{ subtitle }}</div>
+        <div v-if="props.showName" class="stack-view__name">{{ displayName }}</div>
+        <div v-if="props.showSubtitle" class="stack-view__sub">{{ subtitle }}</div>
       </div>
     </div>
     <q-badge v-if="badgeText" color="primary" class="stack-view__badge">{{ badgeText }}</q-badge>
+    <q-tooltip v-if="tooltipEnabled" max-width="420px">
+      <div class="stack-tooltip">
+        <div class="stack-tooltip__title">{{ tooltipTitle }}</div>
+        <div class="stack-tooltip__line">{{ tooltipIdLine }}</div>
+        <div v-if="tooltipMetaLine" class="stack-tooltip__line">{{ tooltipMetaLine }}</div>
+        <div v-if="tooltipNbtLine" class="stack-tooltip__line">{{ tooltipNbtLine }}</div>
+        <div v-if="tooltipTagsLine" class="stack-tooltip__line">{{ tooltipTagsLine }}</div>
+        <div v-if="tooltipSourceLine" class="stack-tooltip__line">{{ tooltipSourceLine }}</div>
+        <div v-if="tooltipDescription" class="stack-tooltip__desc">{{ tooltipDescription }}</div>
+        <div class="stack-tooltip__ns">{{ tooltipNamespace }}</div>
+      </div>
+    </q-tooltip>
   </div>
 </template>
 
@@ -24,10 +43,20 @@ import { computed } from 'vue';
 import type { ItemDef, ItemKey, SlotContent, Stack } from 'src/jei/types';
 import { itemKeyHash } from 'src/jei/indexing/key';
 
-const props = defineProps<{
-  content: SlotContent | undefined;
-  itemDefsByKeyHash: Record<string, ItemDef>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    content: SlotContent | undefined;
+    itemDefsByKeyHash: Record<string, ItemDef>;
+    variant?: 'list' | 'slot';
+    showName?: boolean;
+    showSubtitle?: boolean;
+  }>(),
+  {
+    variant: 'list',
+    showName: true,
+    showSubtitle: true,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
@@ -114,6 +143,82 @@ const fallbackIcon = computed(() => {
   return 'inventory_2';
 });
 
+const tooltipEnabled = computed(() => !!stack.value);
+
+const tooltipTitle = computed(() => displayName.value);
+
+const tooltipIdLine = computed(() => {
+  const s = stack.value;
+  if (!s) return '';
+  if (s.kind === 'item') return `id: ${s.id}`;
+  if (s.kind === 'fluid') return `fluid: ${s.id}`;
+  return `tag: ${s.id}`;
+});
+
+const tooltipMetaLine = computed(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return '';
+  if (s.meta === undefined) return '';
+  return `meta: ${String(s.meta)}`;
+});
+
+function nbtToInlineText(nbt: unknown) {
+  try {
+    const text = JSON.stringify(nbt);
+    if (!text) return '';
+    return text.length > 200 ? `${text.slice(0, 200)}…` : text;
+  } catch {
+    return '[unserializable]';
+  }
+}
+
+const tooltipNbtLine = computed(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return '';
+  if (s.nbt === undefined) return '';
+  const text = nbtToInlineText(s.nbt);
+  return text ? `nbt: ${text}` : '';
+});
+
+const tooltipTagsLine = computed(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return '';
+  const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
+  const tags = def?.tags ?? [];
+  if (!tags.length) return '';
+  const shown = tags.slice(0, 8);
+  const more = tags.length > shown.length ? ` …(+${tags.length - shown.length})` : '';
+  return `tags: ${shown.join(', ')}${more}`;
+});
+
+const tooltipSourceLine = computed(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return '';
+  const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
+  return def?.source ? `source: ${def.source}` : '';
+});
+
+const tooltipDescription = computed(() => {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return '';
+  const def = props.itemDefsByKeyHash[stackItemKeyHash(s)];
+  return def?.description ?? '';
+});
+
+function namespaceOf(id: string) {
+  if (id.includes(':')) return id.split(':')[0] || '';
+  if (id.includes('.')) return id.split('.')[0] || '';
+  return '';
+}
+
+const tooltipNamespace = computed(() => {
+  const s = stack.value;
+  if (!s) return '';
+  const id = s.id;
+  const ns = namespaceOf(id);
+  return ns ? `namespace: ${ns}` : 'namespace: (none)';
+});
+
 function stackItemKeyHash(s: { id: string; meta?: number | string; nbt?: unknown }): string {
   const key: ItemKey = { id: s.id };
   if (s.meta !== undefined) key.meta = s.meta;
@@ -138,6 +243,7 @@ function onClick() {
   justify-content: space-between;
   gap: 8px;
   min-width: 0;
+  position: relative;
 }
 
 .stack-view--clickable {
@@ -153,6 +259,7 @@ function onClick() {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .stack-view__icon {
@@ -176,6 +283,7 @@ function onClick() {
 
 .stack-view__text {
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .stack-view__name {
@@ -195,5 +303,74 @@ function onClick() {
 
 .stack-view__badge {
   flex: 0 0 auto;
+}
+
+.stack-view--slot {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.stack-view--slot .stack-view__main {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.stack-view--slot .stack-view__text {
+  text-align: center;
+}
+
+.stack-view--slot .stack-view__name {
+  max-width: 92px;
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 13px;
+}
+
+.stack-view--slot .stack-view__sub {
+  font-size: 10px;
+  line-height: 12px;
+  opacity: 0.7;
+}
+
+.stack-view--slot .stack-view__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
+
+.stack-tooltip {
+  max-width: 420px;
+}
+
+.stack-tooltip__title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.stack-tooltip__line {
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+.stack-tooltip__desc {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.95;
+  white-space: pre-wrap;
+}
+
+.stack-tooltip__ns {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 </style>
