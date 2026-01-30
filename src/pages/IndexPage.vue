@@ -6,8 +6,61 @@
       <div>Loading…</div>
     </div>
 
-    <div v-else class="jei-root">
-      <q-card flat bordered class="jei-fav column no-wrap">
+    <div v-else class="jei-root" :class="{ 'jei-root--mobile': isMobile }">
+      <!-- 上下文菜单 -->
+      <q-menu
+        ref="contextMenuRef"
+        v-model="contextMenuOpen"
+        :target="contextMenuTarget"
+        content-style="z-index: 9999"
+      >
+        <q-list dense style="min-width: 150px">
+          <q-item clickable v-close-popup @click="onContextMenuAction('recipes')">
+            <q-item-section avatar>
+              <q-icon name="handyman" size="xs" />
+            </q-item-section>
+            <q-item-section>Recipes (R)</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="onContextMenuAction('uses')">
+            <q-item-section avatar>
+              <q-icon name="input" size="xs" />
+            </q-item-section>
+            <q-item-section>Uses (U)</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="onContextMenuAction('wiki')">
+            <q-item-section avatar>
+              <q-icon name="menu_book" size="xs" />
+            </q-item-section>
+            <q-item-section>Wiki (W)</q-item-section>
+          </q-item>
+          <q-item clickable v-close-popup @click="onContextMenuAction('planner')">
+            <q-item-section avatar>
+              <q-icon name="calculate" size="xs" />
+            </q-item-section>
+            <q-item-section>Planner (P)</q-item-section>
+          </q-item>
+          <q-separator />
+          <q-item clickable v-close-popup @click="onContextMenuAction('fav')">
+            <q-item-section avatar>
+              <q-icon
+                :name="
+                  contextMenuKeyHash && isFavorite(contextMenuKeyHash) ? 'star' : 'star_outline'
+                "
+                :color="contextMenuKeyHash && isFavorite(contextMenuKeyHash) ? 'amber' : undefined"
+                size="xs"
+              />
+            </q-item-section>
+            <q-item-section>收藏 (A)</q-item-section>
+          </q-item>
+        </q-list>
+      </q-menu>
+
+      <q-card
+        v-show="!isMobile || mobileTab === 'fav'"
+        flat
+        bordered
+        class="jei-fav column no-wrap"
+      >
         <div class="jei-list__head col-auto">
           <div class="text-subtitle2">收藏夹</div>
           <div class="text-caption">A：取消收藏</div>
@@ -64,6 +117,8 @@
               flat
               bordered
               class="jei-grid__cell cursor-pointer"
+              v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
+              @contextmenu.prevent="onContextMenu($event, it.keyHash)"
               @mouseenter="hoveredKeyHash = it.keyHash"
               @mouseleave="hoveredKeyHash = null"
               @click="openDialogByKeyHash(it.keyHash)"
@@ -71,12 +126,15 @@
               <q-btn
                 flat
                 round
-                dense
-                size="sm"
+                :dense="!isMobile"
+                :size="isMobile ? 'md' : 'sm'"
                 icon="star"
                 color="amber"
                 class="jei-grid__fav"
                 @click.stop="toggleFavorite(it.keyHash)"
+                @mousedown.stop
+                @touchstart.stop
+                style="z-index: 1"
               />
               <div class="jei-grid__cell-body">
                 <stack-view
@@ -96,7 +154,12 @@
         </div>
       </q-card>
 
-      <q-card flat bordered class="jei-panel column no-wrap">
+      <q-card
+        v-show="!isMobile || mobileTab === 'panel'"
+        flat
+        bordered
+        class="jei-panel column no-wrap"
+      >
         <template v-if="settingsStore.recipeViewMode === 'panel'">
           <div class="jei-panel__head row items-center q-gutter-sm col-auto">
             <div class="text-subtitle2">{{ navStack.length ? currentItemTitle : '中间区域' }}</div>
@@ -294,6 +357,8 @@
                                   @item-click="openDialogByItemKey"
                                   @item-mouseenter="hoveredKeyHash = $event"
                                   @item-mouseleave="hoveredKeyHash = null"
+                                  @item-context-menu="onContextMenu"
+                                  @item-touch-hold="onTouchHold"
                                 />
                               </q-card>
                             </div>
@@ -318,6 +383,8 @@
                               @item-click="openDialogByItemKey"
                               @item-mouseenter="hoveredKeyHash = $event"
                               @item-mouseleave="hoveredKeyHash = null"
+                              @item-context-menu="onContextMenu"
+                              @item-touch-hold="onTouchHold"
                             />
                           </q-card>
                         </div>
@@ -339,7 +406,12 @@
         </template>
       </q-card>
 
-      <q-card flat bordered class="jei-list column no-wrap">
+      <q-card
+        v-show="!isMobile || mobileTab === 'list'"
+        flat
+        bordered
+        class="jei-list column no-wrap"
+      >
         <div class="jei-list__head col-auto">
           <div class="text-subtitle2">物品列表</div>
           <div class="text-caption">pack: {{ pack?.manifest.packId }}</div>
@@ -353,6 +425,8 @@
                 flat
                 bordered
                 class="jei-grid__cell cursor-pointer"
+                v-touch-hold:600="(evt: unknown) => onTouchHold(evt, firstPagedItem?.keyHash ?? '')"
+                @contextmenu.prevent="onContextMenu($event, firstPagedItem?.keyHash ?? '')"
                 @mouseenter="hoveredKeyHash = firstPagedItem.keyHash"
                 @mouseleave="hoveredKeyHash = null"
                 @click="openDialogByKeyHash(firstPagedItem.keyHash)"
@@ -360,12 +434,15 @@
                 <q-btn
                   flat
                   round
-                  dense
-                  size="sm"
+                  :dense="!isMobile"
+                  :size="isMobile ? 'md' : 'sm'"
                   :icon="isFavorite(firstPagedItem.keyHash) ? 'star' : 'star_outline'"
                   :color="isFavorite(firstPagedItem.keyHash) ? 'amber' : 'grey-6'"
                   class="jei-grid__fav"
                   @click.stop="toggleFavorite(firstPagedItem.keyHash)"
+                  @mousedown.stop
+                  @touchstart.stop
+                  style="z-index: 1"
                 />
                 <div class="jei-grid__cell-body">
                   <stack-view
@@ -392,6 +469,8 @@
               flat
               bordered
               class="jei-grid__cell cursor-pointer"
+              v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
+              @contextmenu.prevent="onContextMenu($event, it.keyHash)"
               @mouseenter="hoveredKeyHash = it.keyHash"
               @mouseleave="hoveredKeyHash = null"
               @click="openDialogByKeyHash(it.keyHash)"
@@ -399,12 +478,15 @@
               <q-btn
                 flat
                 round
-                dense
-                size="sm"
+                :dense="!isMobile"
+                :size="isMobile ? 'md' : 'sm'"
                 :icon="isFavorite(it.keyHash) ? 'star' : 'star_outline'"
                 :color="isFavorite(it.keyHash) ? 'amber' : 'grey-6'"
                 class="jei-grid__fav"
                 @click.stop="toggleFavorite(it.keyHash)"
+                @mousedown.stop
+                @touchstart.stop
+                style="z-index: 1"
               />
               <div class="jei-grid__cell-body">
                 <stack-view
@@ -448,6 +530,8 @@
                 flat
                 bordered
                 class="jei-grid__cell cursor-pointer"
+                v-touch-hold:600="(evt: unknown) => onTouchHold(evt, it.keyHash)"
+                @contextmenu.prevent="onContextMenu($event, it.keyHash)"
                 @mouseenter="hoveredKeyHash = it.keyHash"
                 @mouseleave="hoveredKeyHash = null"
                 @click="openDialogByKeyHash(it.keyHash)"
@@ -472,6 +556,24 @@
           </div>
         </div>
       </q-card>
+    </div>
+
+    <div
+      v-if="isMobile"
+      class="jei-mobile-nav shadow-up-2"
+      :class="isDark ? 'bg-dark text-white' : 'bg-white text-grey-8'"
+    >
+      <q-tabs
+        v-model="mobileTab"
+        dense
+        align="justify"
+        active-color="primary"
+        indicator-color="primary"
+      >
+        <q-tab name="fav" icon="star" label="收藏" />
+        <q-tab name="panel" icon="dashboard" label="详情" />
+        <q-tab name="list" icon="list" label="列表" />
+      </q-tabs>
     </div>
 
     <div class="jei-bottombar">
@@ -662,8 +764,8 @@
       </q-card>
     </q-dialog>
 
-    <q-dialog v-model="dialogOpen" content-class="jei-dialog-content">
-      <q-card class="jei-dialog">
+    <q-dialog v-model="dialogOpen" content-class="jei-dialog-content" :maximized="isMobile">
+      <q-card class="jei-dialog" :class="{ 'jei-dialog--mobile': isMobile }">
         <div class="jei-dialog__head">
           <div class="jei-dialog__title">
             {{ currentItemTitle }}
@@ -855,6 +957,8 @@
                                 @item-click="openDialogByItemKey"
                                 @item-mouseenter="hoveredKeyHash = $event"
                                 @item-mouseleave="hoveredKeyHash = null"
+                                @item-context-menu="onContextMenu"
+                                @item-touch-hold="onTouchHold"
                               />
                             </q-card>
                           </div>
@@ -873,6 +977,8 @@
                             @item-click="openDialogByItemKey"
                             @item-mouseenter="hoveredKeyHash = $event"
                             @item-mouseleave="hoveredKeyHash = null"
+                            @item-context-menu="onContextMenu"
+                            @item-touch-hold="onTouchHold"
                           />
                         </q-card>
                       </div>
@@ -891,6 +997,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useQuasar } from 'quasar';
 import { useRoute, useRouter } from 'vue-router';
 import type { ItemDef, ItemKey, PackData } from 'src/jei/types';
 import { loadPack } from 'src/jei/pack/loader';
@@ -914,6 +1021,12 @@ import { autoPlanSelections } from 'src/jei/planner/planner';
 import { useSettingsStore } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
+const contextMenuTarget = ref<HTMLElement | undefined>(undefined);
+const $q = useQuasar();
+const isMobile = computed(() => $q.screen.lt.md);
+const isDark = computed(() => $q.dark.isActive);
+const mobileTab = ref<'list' | 'fav' | 'panel'>('list');
+
 const route = useRoute();
 const router = useRouter();
 const applyingRoute = ref(false);
@@ -984,7 +1097,57 @@ const filterForm = ref({
 
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
+const contextMenuOpen = ref(false);
+const contextMenuKeyHash = ref<string | null>(null);
+const contextMenuRef = ref();
+
+function onContextMenu(evt: Event, keyHash: string) {
+  contextMenuKeyHash.value = keyHash;
+  const target =
+    (evt.target as HTMLElement).closest('.jei-grid__cell, .stack-view') ||
+    (evt.target as HTMLElement);
+  contextMenuTarget.value = (target as HTMLElement) || undefined;
+  contextMenuRef.value?.show();
+}
+
+function onTouchHold(evt: unknown, keyHash: string) {
+  const d = evt as {
+    evt: Event;
+    position: { top: number; left: number };
+    touch: boolean;
+    mouse: boolean;
+  };
+  if (d.mouse) return;
+  contextMenuKeyHash.value = keyHash;
+  const target =
+    (d.evt.target as HTMLElement).closest('.jei-grid__cell, .stack-view') ||
+    (d.evt.target as HTMLElement);
+  contextMenuTarget.value = (target as HTMLElement) || undefined;
+  contextMenuRef.value?.show();
+}
+
+function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav') {
+  const keyHash = contextMenuKeyHash.value;
+  if (!keyHash) return;
+
+  if (action === 'fav') {
+    toggleFavorite(keyHash);
+    return;
+  }
+  openDialogByKeyHash(keyHash, action);
+}
+
 const navStack = ref<ItemKey[]>([]);
+
+watch(
+  () => navStack.value.length,
+  (len) => {
+    if (isMobile.value && len > 0 && settingsStore.recipeViewMode === 'panel') {
+      mobileTab.value = 'panel';
+    }
+  },
+);
+
 const activeTab = ref<'recipes' | 'uses' | 'wiki' | 'planner'>('recipes');
 const lastRecipeTab = ref<'recipes' | 'uses'>('recipes');
 const activeRecipesTypeKey = ref('');
@@ -2257,6 +2420,36 @@ function matchesSearch(def: ItemDef, search: ParsedSearch): boolean {
   padding-bottom: 0;
 }
 
+.jei-root--mobile {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.jei-root--mobile > .q-card {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  flex: 1;
+}
+
+.jei-mobile-nav {
+  flex: 0 0 auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  z-index: 20;
+}
+
+@media (max-width: 599px) {
+  .jei-bottombar .row {
+    flex-wrap: wrap;
+  }
+  .jei-bottombar .q-select {
+    width: 100%;
+    min-width: 0 !important;
+    margin-bottom: 8px;
+  }
+}
+
 .jei-fav {
   height: 100%;
   min-height: 0;
@@ -2404,6 +2597,14 @@ function matchesSearch(def: ItemDef, search: ParsedSearch): boolean {
   height: min(86vh, 960px);
   display: flex;
   flex-direction: column;
+}
+
+.jei-dialog--mobile {
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: none !important;
+  border-radius: 0 !important;
 }
 
 :deep(.jei-dialog-content) {

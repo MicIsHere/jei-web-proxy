@@ -8,6 +8,8 @@
     @click="onClick"
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
+    @contextmenu.prevent="onContextMenu"
+    v-touch-hold:600="onTouchHold"
   >
     <div class="stack-view__main">
       <q-img v-if="iconSrc" :src="iconSrc" :ratio="1" fit="contain" class="stack-view__icon" />
@@ -64,6 +66,8 @@ const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
   (e: 'item-mouseenter', keyHash: string): void;
   (e: 'item-mouseleave'): void;
+  (e: 'item-context-menu', evt: Event, keyHash: string): void;
+  (e: 'item-touch-hold', evt: unknown, keyHash: string): void;
 }>();
 
 const stacks = computed<Stack[]>(() => {
@@ -248,6 +252,20 @@ function onMouseEnter() {
 
 function onMouseLeave() {
   emit('item-mouseleave');
+}
+
+function onContextMenu(evt: Event) {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return;
+  const keyHash = stackItemKeyHash(s);
+  emit('item-context-menu', evt, keyHash);
+}
+
+function onTouchHold(evt: unknown) {
+  const s = stack.value;
+  if (!s || s.kind !== 'item') return;
+  const keyHash = stackItemKeyHash(s);
+  emit('item-touch-hold', evt, keyHash);
 }
 </script>
 

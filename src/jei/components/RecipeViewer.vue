@@ -14,6 +14,8 @@
     @item-click="emit('item-click', $event)"
     @item-mouseenter="emit('item-mouseenter', $event)"
     @item-mouseleave="emit('item-mouseleave')"
+    @item-context-menu="(evt: Event, keyHash: string) => emit('item-context-menu', evt, keyHash)"
+    @item-touch-hold="(evt: unknown, keyHash: string) => emit('item-touch-hold', evt, keyHash)"
   />
 </template>
 
@@ -26,6 +28,8 @@ const emit = defineEmits<{
   (e: 'item-click', itemKey: ItemKey): void;
   (e: 'item-mouseenter', keyHash: string): void;
   (e: 'item-mouseleave'): void;
+  (e: 'item-context-menu', evt: Event, keyHash: string): void;
+  (e: 'item-touch-hold', evt: unknown, keyHash: string): void;
 }>();
 
 defineProps<{
