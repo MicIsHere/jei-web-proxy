@@ -138,6 +138,73 @@
 
           <q-card-section>
             <div class="row items-center q-mb-sm">
+              <div class="text-h6">Defaults</div>
+              <q-space />
+              <q-btn size="sm" color="primary" icon="add" label="Add Default" @click="addDefault" />
+            </div>
+
+            <div
+              v-for="(val, key) in currentType.defaults"
+              :key="key"
+              class="row q-col-gutter-sm q-mb-sm items-center"
+            >
+              <div class="col-4">
+                <q-input
+                  :model-value="key"
+                  @update:model-value="(next) => updateDefaultKey(key, next as string)"
+                  label="Key"
+                  dense
+                />
+              </div>
+              <div class="col-6">
+                <q-input
+                  v-if="typeof val === 'number'"
+                  type="number"
+                  :model-value="val"
+                  @update:model-value="(next) => setDefaultValue(key, Number(next))"
+                  label="Value"
+                  dense
+                />
+                <q-toggle
+                  v-else-if="typeof val === 'boolean'"
+                  :model-value="val"
+                  @update:model-value="(next) => setDefaultValue(key, next)"
+                  label="Value"
+                  dense
+                />
+                <q-input
+                  v-else
+                  :model-value="defaultValueToString(val)"
+                  @update:model-value="
+                    (next) => updateDefaultValueFromString(key, next as string, val)
+                  "
+                  label="Value"
+                  dense
+                />
+              </div>
+              <div class="col-2 text-right">
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="delete"
+                  color="negative"
+                  @click="deleteDefault(key)"
+                />
+              </div>
+            </div>
+            <div
+              v-if="!currentType.defaults || Object.keys(currentType.defaults).length === 0"
+              class="text-grey q-pa-sm"
+            >
+              No defaults defined
+            </div>
+          </q-card-section>
+
+          <q-separator />
+
+          <q-card-section>
+            <div class="row items-center q-mb-sm">
               <div class="text-h6">Slots Layout</div>
               <q-space />
               <q-btn size="sm" color="primary" icon="add" label="Add Slot" @click="addSlot" />
@@ -375,6 +442,83 @@ function updateParamKey(oldKey: string, newKey: string) {
 function deleteParam(key: string) {
   if (!currentType.value || !currentType.value.paramSchema) return;
   delete currentType.value.paramSchema[key];
+}
+
+function ensureDefaults() {
+  if (!currentType.value) return;
+  if (!currentType.value.defaults) currentType.value.defaults = {};
+}
+
+function addDefault() {
+  if (!currentType.value) return;
+  ensureDefaults();
+  $q.dialog({
+    title: 'New Default',
+    message: 'Enter default key (e.g. "power")',
+    prompt: {
+      model: '',
+      isValid: (val) => val.length > 0 && !currentType.value?.defaults?.[val],
+    },
+    cancel: true,
+    persistent: true,
+  }).onOk((key) => {
+    if (!currentType.value) return;
+    ensureDefaults();
+    currentType.value.defaults![key] = 0;
+  });
+}
+
+function updateDefaultKey(oldKey: string, newKey: string) {
+  if (!currentType.value || !currentType.value.defaults) return;
+  if (oldKey === newKey) return;
+  if (currentType.value.defaults[newKey] !== undefined) {
+    $q.notify({ type: 'warning', message: 'Key already exists' });
+    return;
+  }
+  const val = currentType.value.defaults[oldKey];
+  delete currentType.value.defaults[oldKey];
+  currentType.value.defaults[newKey] = val;
+}
+
+function deleteDefault(key: string) {
+  if (!currentType.value || !currentType.value.defaults) return;
+  delete currentType.value.defaults[key];
+}
+
+function setDefaultValue(key: string, val: unknown) {
+  if (!currentType.value) return;
+  ensureDefaults();
+  currentType.value.defaults![key] = val;
+}
+
+function defaultValueToString(val: unknown): string {
+  if (val == null) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number' || typeof val === 'boolean' || typeof val === 'bigint')
+    return String(val);
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return '';
+  }
+}
+
+function updateDefaultValueFromString(key: string, raw: string, prev: unknown) {
+  if (!currentType.value) return;
+  ensureDefaults();
+  if (typeof prev === 'string') {
+    currentType.value.defaults![key] = raw;
+    return;
+  }
+  if (prev && typeof prev === 'object') {
+    try {
+      currentType.value.defaults![key] = JSON.parse(raw);
+    } catch {
+      currentType.value.defaults![key] = raw;
+    }
+    return;
+  }
+  currentType.value.defaults![key] = raw;
 }
 
 // Drag and Drop Logic
