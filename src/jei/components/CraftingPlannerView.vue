@@ -122,6 +122,7 @@
         <q-tabs v-model="activeTab" dense outside-arrows mobile-arrows inline-label>
           <q-tab name="tree" label="合成树" />
           <q-tab name="graph" label="节点图" />
+          <q-tab name="line" label="生产线" />
           <q-tab name="calc" label="计算器" />
         </q-tabs>
         <q-separator />
@@ -489,6 +490,194 @@
           </div>
         </div>
 
+        <div v-else-if="activeTab === 'line'" class="q-mt-md">
+          <div class="row items-center q-gutter-sm">
+            <div class="text-caption text-grey-8">目标产出</div>
+            <q-input
+              dense
+              filled
+              type="number"
+              style="width: 160px"
+              :model-value="targetAmount"
+              @update:model-value="(v) => (targetAmount = Number(v))"
+            />
+            <q-select
+              dense
+              filled
+              emit-value
+              map-options
+              style="min-width: 100px"
+              :options="unitOptions"
+              :model-value="targetUnit"
+              @update:model-value="(v) => (targetUnit = v as (typeof unitOptions)[number]['value'])"
+            />
+            <q-toggle v-model="lineCollapseIntermediate" dense label="隐藏中间产物" />
+          </div>
+          <div v-if="treeResult" class="q-mt-md planner__flow">
+            <VueFlow
+              id="planner-line-flow"
+              :nodes="lineFlowNodes"
+              :edges="lineFlowEdges"
+              :nodes-draggable="false"
+              :nodes-connectable="false"
+              :elements-selectable="false"
+              :zoom-on-double-click="false"
+              :min-zoom="0.2"
+              :max-zoom="2"
+              :pan-on-drag="true"
+              no-pan-class-name="nopan"
+              no-drag-class-name="nodrag"
+            >
+              <Background :gap="20" pattern-color="rgba(0,0,0,0.12)" />
+              <Controls />
+              <MiniMap />
+              <template #node-lineItemNode="p">
+                <div class="planner__flow-node nodrag nopan">
+                  <Handle
+                    v-for="i in p.data.inPorts"
+                    :id="`t${i - 1}`"
+                    :key="`t${i - 1}`"
+                    type="target"
+                    :position="Position.Left"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.inPorts + 1)) * 100}%` }"
+                  />
+                  <Handle
+                    v-for="i in p.data.outPorts"
+                    :id="`s${i - 1}`"
+                    :key="`s${i - 1}`"
+                    type="source"
+                    :position="Position.Right"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.outPorts + 1)) * 100}%` }"
+                  />
+                  <div
+                    class="planner__flow-node-icon cursor-pointer"
+                    @click="emit('item-click', p.data.itemKey)"
+                  >
+                    <stack-view
+                      :content="{
+                        kind: 'item',
+                        id: p.data.itemKey.id,
+                        amount: 1,
+                        ...(p.data.itemKey.meta !== undefined ? { meta: p.data.itemKey.meta } : {}),
+                        ...(p.data.itemKey.nbt !== undefined ? { nbt: p.data.itemKey.nbt } : {}),
+                      }"
+                      :item-defs-by-key-hash="itemDefsByKeyHash"
+                      variant="slot"
+                      :show-name="false"
+                      :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
+                    />
+                  </div>
+                  <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
+                    <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                    <div class="planner__flow-node-sub">
+                      {{ p.data.subtitle }}
+                      <q-badge v-if="p.data.isRoot" color="primary" class="q-ml-xs">目标</q-badge>
+                    </div>
+                  </div>
+                </div>
+              </template>
+              <template #node-lineMachineNode="p">
+                <div class="planner__flow-node planner__flow-node--machine nodrag nopan">
+                  <Handle
+                    v-for="i in p.data.inPorts"
+                    :id="`t${i - 1}`"
+                    :key="`t${i - 1}`"
+                    type="target"
+                    :position="Position.Left"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.inPorts + 1)) * 100}%` }"
+                  />
+                  <Handle
+                    v-for="i in p.data.outPorts"
+                    :id="`s${i - 1}`"
+                    :key="`s${i - 1}`"
+                    type="source"
+                    :position="Position.Right"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.outPorts + 1)) * 100}%` }"
+                  />
+                  <div class="planner__flow-node-icon">
+                    <stack-view
+                      v-if="p.data.machineItemId"
+                      :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
+                      :item-defs-by-key-hash="itemDefsByKeyHash"
+                      variant="slot"
+                      :show-name="false"
+                      :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
+                    />
+                    <div v-else class="planner__flow-node-icon-fallback">M</div>
+                  </div>
+                  <div class="planner__flow-node-text" @click.stop @mousedown.stop @dblclick.stop>
+                    <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                    <div class="planner__flow-node-sub">
+                      {{ p.data.subtitle }}
+                      <q-badge v-if="p.data.machineCount" color="accent" class="q-ml-xs">
+                        x{{ p.data.machineCount }}
+                      </q-badge>
+                    </div>
+                  </div>
+                  <div
+                    class="planner__flow-node-icon cursor-pointer"
+                    @click="emit('item-click', p.data.outputItemKey)"
+                  >
+                    <stack-view
+                      :content="{
+                        kind: 'item',
+                        id: p.data.outputItemKey.id,
+                        amount: 1,
+                        ...(p.data.outputItemKey.meta !== undefined
+                          ? { meta: p.data.outputItemKey.meta }
+                          : {}),
+                        ...(p.data.outputItemKey.nbt !== undefined
+                          ? { nbt: p.data.outputItemKey.nbt }
+                          : {}),
+                      }"
+                      :item-defs-by-key-hash="itemDefsByKeyHash"
+                      variant="slot"
+                      :show-name="false"
+                      :show-subtitle="false"
+                      @item-mouseenter="emit('item-mouseenter', $event)"
+                      @item-mouseleave="emit('item-mouseleave')"
+                    />
+                  </div>
+                </div>
+              </template>
+              <template #node-lineFluidNode="p">
+                <div class="planner__flow-node planner__flow-node--fluid nodrag nopan">
+                  <Handle
+                    v-for="i in p.data.inPorts"
+                    :id="`t${i - 1}`"
+                    :key="`t${i - 1}`"
+                    type="target"
+                    :position="Position.Left"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.inPorts + 1)) * 100}%` }"
+                  />
+                  <Handle
+                    v-for="i in p.data.outPorts"
+                    :id="`s${i - 1}`"
+                    :key="`s${i - 1}`"
+                    type="source"
+                    :position="Position.Right"
+                    class="planner__handle"
+                    :style="{ top: `${(i / (p.data.outPorts + 1)) * 100}%` }"
+                  />
+                  <div class="planner__flow-node-text" @mousedown.stop @dblclick.stop>
+                    <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                    <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
+                  </div>
+                </div>
+              </template>
+            </VueFlow>
+          </div>
+        </div>
+
         <div v-else class="q-mt-md">
           <div class="row items-center q-gutter-sm">
             <div class="text-caption text-grey-8">目标产出</div>
@@ -663,7 +852,7 @@ import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import { itemKeyHash } from 'src/jei/indexing/key';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
-import { VueFlow, type Edge, type Node } from '@vue-flow/core';
+import { VueFlow, type Edge, type Node, Handle, MarkerType, Position } from '@vue-flow/core';
 import { MiniMap } from '@vue-flow/minimap';
 import '@vue-flow/core/dist/style.css';
 import '@vue-flow/core/dist/theme-default.css';
@@ -671,6 +860,7 @@ import '@vue-flow/controls/dist/style.css';
 import '@vue-flow/minimap/dist/style.css';
 import RecipeViewer from './RecipeViewer.vue';
 import StackView from './StackView.vue';
+import { buildProductionLineModel } from 'src/jei/planner/productionLine';
 import type {
   PlannerInitialState,
   PlannerLiveState,
@@ -706,11 +896,12 @@ const emit = defineEmits<{
 const selectedRecipeIdByItemKeyHash = ref<Map<string, string>>(new Map());
 const selectedItemIdByTagId = ref<Map<string, ItemId>>(new Map());
 
-const activeTab = ref<'tree' | 'graph' | 'calc'>('tree');
+const activeTab = ref<'tree' | 'graph' | 'line' | 'calc'>('tree');
 const targetAmount = ref(1);
 const targetUnit = ref<'items' | 'per_second' | 'per_minute' | 'per_hour'>('items');
 const treeDisplayMode = ref<'list' | 'compact'>('list');
 const collapsed = ref<Set<string>>(new Set());
+const lineCollapseIntermediate = ref(true);
 
 // Unit options for the dropdown
 const unitOptions = [
@@ -950,6 +1141,20 @@ function nodeDisplayRate(node: RequirementNode | EnhancedRequirementNode): numbe
   return amount;
 }
 
+function displayRateFromAmount(amount: number): number {
+  if (targetUnit.value === 'items') return amount;
+  if (targetUnit.value === 'per_second') return amount / 60;
+  if (targetUnit.value === 'per_hour') return amount * 60;
+  return amount;
+}
+
+function unitSuffix() {
+  if (targetUnit.value === 'per_second') return '/s';
+  if (targetUnit.value === 'per_hour') return '/h';
+  if (targetUnit.value === 'per_minute') return '/min';
+  return '';
+}
+
 function nodeBeltsText(node: RequirementNode | EnhancedRequirementNode): string {
   if (targetUnit.value === 'items') return '';
   if (node.kind !== 'item') return '';
@@ -1117,6 +1322,499 @@ const flow = computed(() => {
 const flowNodes = computed(() => flow.value.nodes);
 const flowEdges = computed(() => flow.value.edges);
 
+type LineFlowItemData = {
+  itemKey: ItemKey;
+  title: string;
+  subtitle: string;
+  isRoot: boolean;
+  inPorts: number;
+  outPorts: number;
+};
+type LineFlowMachineData = {
+  title: string;
+  subtitle: string;
+  machineItemId?: string;
+  machineCount?: number;
+  outputItemKey: ItemKey;
+  inPorts: number;
+  outPorts: number;
+};
+type LineFlowFluidData = {
+  title: string;
+  subtitle: string;
+  inPorts: number;
+  outPorts: number;
+};
+
+const lineFlow = computed(() => {
+  const result = enhancedTreeResult.value || treeResult.value;
+  if (!result) return { nodes: [] as Node[], edges: [] as Edge[] };
+
+  const model = buildProductionLineModel({
+    root: result.root as unknown as RequirementNode,
+    rootItemKey: props.rootItemKey,
+    includeCycleSeeds: targetUnit.value === 'items',
+    collapseIntermediateItems: lineCollapseIntermediate.value,
+  });
+
+  const titleById = new Map<string, string>();
+  const nodes: Node[] = model.nodes.map((n) => {
+    if (n.kind === 'item') {
+      const base = `${formatAmount(displayRateFromAmount(n.amount))}${unitSuffix()}`;
+      const seed =
+        targetUnit.value === 'items' && n.seedAmount && n.seedAmount > 0
+          ? ` (seed ${formatAmount(n.seedAmount)})`
+          : '';
+      const subtitle = `${base}${seed}`;
+      const title = itemName(n.itemKey);
+      titleById.set(n.nodeId, title);
+      return {
+        id: n.nodeId,
+        type: 'lineItemNode',
+        position: { x: 0, y: 0 },
+        draggable: false,
+        selectable: false,
+        data: {
+          itemKey: n.itemKey,
+          title,
+          subtitle,
+          isRoot: !!n.isRoot,
+          inPorts: 0,
+          outPorts: 0,
+        } satisfies LineFlowItemData,
+      };
+    }
+    if (n.kind === 'fluid') {
+      const subtitle = `${formatAmount(displayRateFromAmount(n.amount))}${unitSuffix()}${n.unit ?? ''}`;
+      titleById.set(n.nodeId, n.id);
+      return {
+        id: n.nodeId,
+        type: 'lineFluidNode',
+        position: { x: 0, y: 0 },
+        draggable: false,
+        selectable: false,
+        data: {
+          title: n.id,
+          subtitle,
+          inPorts: 0,
+          outPorts: 0,
+        } satisfies LineFlowFluidData,
+      };
+    }
+
+    const title = n.machineName ?? n.recipeTypeKey ?? n.recipeId;
+    const outName = itemName(n.outputItemKey);
+    const subtitle = `${outName} ${formatAmount(displayRateFromAmount(n.amount))}${unitSuffix()}`;
+    titleById.set(n.nodeId, title);
+    return {
+      id: n.nodeId,
+      type: 'lineMachineNode',
+      position: { x: 0, y: 0 },
+      draggable: false,
+      selectable: false,
+      data: {
+        title,
+        subtitle,
+        ...(n.machineItemId ? { machineItemId: n.machineItemId } : {}),
+        ...(n.machineCount !== undefined ? { machineCount: Math.round(n.machineCount) } : {}),
+        outputItemKey: n.outputItemKey,
+        inPorts: 0,
+        outPorts: 0,
+      } satisfies LineFlowMachineData,
+    };
+  });
+
+  const edges: Edge[] = model.edges.map((e) => {
+    const label = `${formatAmount(displayRateFromAmount(e.amount))}${unitSuffix()}`;
+    return {
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      type: 'bezier',
+      label,
+      labelBgPadding: [6, 3],
+      labelBgBorderRadius: 6,
+      style: { strokeWidth: 2 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        width: 18,
+        height: 18,
+      },
+    };
+  });
+
+  const inEdgesByTarget = new Map<string, Edge[]>();
+  const outEdgesBySource = new Map<string, Edge[]>();
+  nodes.forEach((n) => {
+    inEdgesByTarget.set(n.id, []);
+    outEdgesBySource.set(n.id, []);
+  });
+  edges.forEach((e) => {
+    (outEdgesBySource.get(e.source) ?? []).push(e);
+    (inEdgesByTarget.get(e.target) ?? []).push(e);
+  });
+
+  const MAX_PORTS = 10;
+  nodes.forEach((n) => {
+    const inList = inEdgesByTarget.get(n.id) ?? [];
+    const outList = outEdgesBySource.get(n.id) ?? [];
+    const inPorts = inList.length ? Math.min(MAX_PORTS, Math.max(1, inList.length)) : 0;
+    const outPorts = outList.length ? Math.min(MAX_PORTS, Math.max(1, outList.length)) : 0;
+    (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).inPorts = inPorts;
+    (n.data as LineFlowItemData | LineFlowMachineData | LineFlowFluidData).outPorts = outPorts;
+  });
+  nodes.forEach((n) => {
+    const inList = (inEdgesByTarget.get(n.id) ?? []).slice().sort((a, b) => {
+      const sa = titleById.get(a.source) ?? a.source;
+      const sb = titleById.get(b.source) ?? b.source;
+      return sa.localeCompare(sb);
+    });
+    const outList = (outEdgesBySource.get(n.id) ?? []).slice().sort((a, b) => {
+      const ta = titleById.get(a.target) ?? a.target;
+      const tb = titleById.get(b.target) ?? b.target;
+      return ta.localeCompare(tb);
+    });
+    inList.forEach((e, idx) => {
+      e.targetHandle = `t${idx % MAX_PORTS}`;
+    });
+    outList.forEach((e, idx) => {
+      e.sourceHandle = `s${idx % MAX_PORTS}`;
+    });
+  });
+
+  const nodeW = 300;
+  const nodeH = 64;
+  const gapX = 30;
+  const gapY = 22;
+  const pad = 18;
+
+  const ids = nodes.map((n) => n.id);
+  const kindById = new Map<string, 'item' | 'fluid' | 'machine'>();
+  nodes.forEach((n) => {
+    if (n.type === 'lineMachineNode') kindById.set(n.id, 'machine');
+    else if (n.type === 'lineFluidNode') kindById.set(n.id, 'fluid');
+    else kindById.set(n.id, 'item');
+  });
+
+  const out = new Map<string, string[]>();
+  const inp = new Map<string, string[]>();
+  ids.forEach((id) => {
+    out.set(id, []);
+    inp.set(id, []);
+  });
+  edges.forEach((e) => {
+    (out.get(e.source) ?? []).push(e.target);
+    (inp.get(e.target) ?? []).push(e.source);
+  });
+
+  const tarjanIndex = new Map<string, number>();
+  const low = new Map<string, number>();
+  const onStack = new Set<string>();
+  const st: string[] = [];
+  let idx = 0;
+  const comps: string[][] = [];
+
+  const strongconnect = (v: string) => {
+    tarjanIndex.set(v, idx);
+    low.set(v, idx);
+    idx += 1;
+    st.push(v);
+    onStack.add(v);
+
+    (out.get(v) ?? []).forEach((w) => {
+      if (!tarjanIndex.has(w)) {
+        strongconnect(w);
+        low.set(v, Math.min(low.get(v) ?? 0, low.get(w) ?? 0));
+      } else if (onStack.has(w)) {
+        low.set(v, Math.min(low.get(v) ?? 0, tarjanIndex.get(w) ?? 0));
+      }
+    });
+
+    if ((low.get(v) ?? 0) === (tarjanIndex.get(v) ?? 0)) {
+      const comp: string[] = [];
+      while (st.length) {
+        const w = st.pop()!;
+        onStack.delete(w);
+        comp.push(w);
+        if (w === v) break;
+      }
+      comps.push(comp);
+    }
+  };
+
+  ids.forEach((id) => {
+    if (!tarjanIndex.has(id)) strongconnect(id);
+  });
+
+  const compById = new Map<string, number>();
+  comps.forEach((c, i) => c.forEach((id) => compById.set(id, i)));
+  const hasSelfLoop = new Set<number>();
+  edges.forEach((e) => {
+    const cs = compById.get(e.source);
+    const ct = compById.get(e.target);
+    if (cs !== undefined && ct !== undefined && cs === ct && e.source === e.target)
+      hasSelfLoop.add(cs);
+  });
+  const cycleCompIds = new Set<number>();
+  comps.forEach((c, i) => {
+    if (c.length > 1) cycleCompIds.add(i);
+    else if (hasSelfLoop.has(i)) cycleCompIds.add(i);
+  });
+  const cycleNodeIds = new Set<string>();
+  cycleCompIds.forEach((cid) => comps[cid]!.forEach((id) => cycleNodeIds.add(id)));
+
+  const mainIds = ids.filter((id) => !cycleNodeIds.has(id));
+
+  const mainOut = new Map<string, string[]>();
+  const mainInp = new Map<string, string[]>();
+  mainIds.forEach((id) => {
+    mainOut.set(id, []);
+    mainInp.set(id, []);
+  });
+  edges.forEach((e) => {
+    if (!mainOut.has(e.source) || !mainInp.has(e.target)) return;
+    (mainOut.get(e.source) ?? []).push(e.target);
+    (mainInp.get(e.target) ?? []).push(e.source);
+  });
+
+  const indeg = new Map<string, number>();
+  mainIds.forEach((id) => indeg.set(id, (mainInp.get(id) ?? []).length));
+  const queue = mainIds
+    .filter((id) => (indeg.get(id) ?? 0) === 0)
+    .sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b));
+
+  const topo: string[] = [];
+  while (queue.length) {
+    const id = queue.shift()!;
+    topo.push(id);
+    (mainOut.get(id) ?? []).forEach((to) => {
+      indeg.set(to, (indeg.get(to) ?? 0) - 1);
+      if ((indeg.get(to) ?? 0) === 0) {
+        queue.push(to);
+        queue.sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b));
+      }
+    });
+  }
+  const topoSet = new Set(topo);
+  mainIds.forEach((id) => {
+    if (!topoSet.has(id)) topo.push(id);
+  });
+
+  const layerById = new Map<string, number>();
+  topo.forEach((id) => layerById.set(id, 0));
+  topo.forEach((id) => {
+    const base = layerById.get(id) ?? 0;
+    (mainOut.get(id) ?? []).forEach((to) => {
+      const prev = layerById.get(to) ?? 0;
+      if (base + 1 > prev) layerById.set(to, base + 1);
+    });
+  });
+
+  const maxLayer = Math.max(0, ...mainIds.map((id) => layerById.get(id) ?? 0));
+  const idsByLayer = new Map<number, string[]>();
+  for (let l = 0; l <= maxLayer; l += 1) idsByLayer.set(l, []);
+  mainIds.forEach((id) => {
+    const l = layerById.get(id) ?? 0;
+    (idsByLayer.get(l) ?? []).push(id);
+  });
+
+  idsByLayer.forEach((list) =>
+    list.sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b)),
+  );
+
+  const orderIndex = new Map<string, number>();
+  const refreshOrderIndex = () => {
+    idsByLayer.forEach((list) => list.forEach((id, idx) => orderIndex.set(id, idx)));
+  };
+  refreshOrderIndex();
+
+  const bary = (neighbors: string[]) => {
+    if (!neighbors.length) return Number.POSITIVE_INFINITY;
+    let sum = 0;
+    let cnt = 0;
+    neighbors.forEach((n) => {
+      const v = orderIndex.get(n);
+      if (v === undefined) return;
+      sum += v;
+      cnt += 1;
+    });
+    return cnt ? sum / cnt : Number.POSITIVE_INFINITY;
+  };
+
+  const stableSortBy = (list: string[], scoreFn: (id: string) => number) => {
+    const withScore = list.map((id, idx) => ({ id, idx, s: scoreFn(id) }));
+    withScore.sort((a, b) => a.s - b.s || a.idx - b.idx);
+    return withScore.map((v) => v.id);
+  };
+
+  for (let pass = 0; pass < 4; pass += 1) {
+    for (let l = 1; l <= maxLayer; l += 1) {
+      const list = idsByLayer.get(l) ?? [];
+      idsByLayer.set(
+        l,
+        stableSortBy(list, (id) => bary(mainInp.get(id) ?? [])),
+      );
+      refreshOrderIndex();
+    }
+    for (let l = maxLayer - 1; l >= 0; l -= 1) {
+      const list = idsByLayer.get(l) ?? [];
+      idsByLayer.set(
+        l,
+        stableSortBy(list, (id) => bary(mainOut.get(id) ?? [])),
+      );
+      refreshOrderIndex();
+    }
+  }
+
+  const xById = new Map<string, number>();
+  const X_GAP = 40;
+  const minX = pad;
+  ids.forEach((id) => xById.set(id, minX));
+  const predsForX = new Map<string, string[]>();
+  ids.forEach((id) => predsForX.set(id, []));
+  edges.forEach((e) => {
+    if (!mainIds.includes(e.source) || !mainIds.includes(e.target)) return;
+    const ls = layerById.get(e.source) ?? 0;
+    const lt = layerById.get(e.target) ?? 0;
+    if (ls < lt) (predsForX.get(e.target) ?? []).push(e.source);
+  });
+  const mainTopo = topo.filter((id) => !cycleNodeIds.has(id));
+  for (let iter = 0; iter < 2; iter += 1) {
+    mainTopo.forEach((id) => {
+      const preds = predsForX.get(id) ?? [];
+      if (!preds.length) return;
+      const maxPredX = Math.max(...preds.map((p) => xById.get(p) ?? minX));
+      const next = Math.max(minX, maxPredX + nodeW + X_GAP);
+      xById.set(id, next);
+    });
+  }
+
+  nodes.forEach((n) => {
+    if (cycleNodeIds.has(n.id)) return;
+    const l = layerById.get(n.id) ?? 0;
+    const list = idsByLayer.get(l) ?? [];
+    const idx = list.indexOf(n.id);
+    n.position = {
+      x: xById.get(n.id) ?? pad + l * (nodeW + gapX),
+      y: pad + idx * (nodeH + gapY),
+    };
+  });
+
+  const mainMaxX = Math.max(pad, ...mainIds.map((id) => xById.get(id) ?? pad));
+  const cycleComponents = Array.from(cycleCompIds.values())
+    .map((cid) => comps[cid]!)
+    .filter((c) => c.length);
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n] as const));
+  const outWithin = new Map<string, string[]>();
+  cycleNodeIds.forEach((id) => outWithin.set(id, []));
+  edges.forEach((e) => {
+    if (!cycleNodeIds.has(e.source) || !cycleNodeIds.has(e.target)) return;
+    (outWithin.get(e.source) ?? []).push(e.target);
+  });
+
+  const occupied: Array<{ x0: number; y0: number; x1: number; y1: number }> = [];
+  nodes.forEach((n) => {
+    if (cycleNodeIds.has(n.id)) return;
+    occupied.push({
+      x0: n.position.x,
+      y0: n.position.y,
+      x1: n.position.x + nodeW,
+      y1: n.position.y + nodeH,
+    });
+  });
+
+  const intersects = (
+    a: { x0: number; y0: number; x1: number; y1: number },
+    b: { x0: number; y0: number; x1: number; y1: number },
+  ) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
+  let fallbackY = pad;
+  cycleComponents
+    .sort((a, b) => a.length - b.length)
+    .forEach((comp) => {
+      const compSet = new Set(comp);
+      const start = comp
+        .slice()
+        .sort((a, b) => (titleById.get(a) ?? a).localeCompare(titleById.get(b) ?? b))[0]!;
+      const order: string[] = [];
+      const seen = new Set<string>();
+      let cur: string | null = start;
+      while (cur && !seen.has(cur) && order.length < comp.length) {
+        order.push(cur);
+        seen.add(cur);
+        const nexts: string[] = (outWithin.get(cur) ?? []).filter(
+          (t: string) => compSet.has(t) && !seen.has(t),
+        );
+        cur = nexts.length ? nexts[0]! : null;
+      }
+      comp.forEach((id) => {
+        if (!seen.has(id)) order.push(id);
+      });
+
+      const r = Math.max(160, order.length * 24);
+
+      const consumerCenters: Array<{ x: number; y: number }> = [];
+      edges.forEach((e) => {
+        if (!compSet.has(e.source) || compSet.has(e.target)) return;
+        const t = nodeById.get(e.target);
+        if (!t) return;
+        if (cycleNodeIds.has(t.id)) return;
+        consumerCenters.push({
+          x: t.position.x + nodeW / 2,
+          y: t.position.y + nodeH / 2,
+        });
+      });
+
+      const fallbackX = mainMaxX + nodeW + 140;
+      const minConsumerX = consumerCenters.length
+        ? Math.min(...consumerCenters.map((p) => p.x - nodeW / 2))
+        : null;
+      const avgConsumerY = consumerCenters.length
+        ? consumerCenters.reduce((s, p) => s + p.y, 0) / consumerCenters.length
+        : null;
+
+      const gapToConsumer = 80;
+      const centerX = (() => {
+        if (minConsumerX === null) return fallbackX + r + nodeW / 2;
+        const desired = minConsumerX - gapToConsumer - r - nodeW;
+        return Math.max(pad + r, desired);
+      })();
+      let centerY = avgConsumerY ?? fallbackY + r + nodeH / 2;
+
+      const ringBox = (cx: number, cy: number) => ({
+        x0: cx - r,
+        y0: cy - r,
+        x1: cx + r + nodeW,
+        y1: cy + r + nodeH,
+      });
+
+      let box = ringBox(centerX, centerY);
+      for (let tries = 0; tries < 80; tries += 1) {
+        const hit = occupied.find((b) => intersects(box, b));
+        if (!hit) break;
+        centerY = hit.y1 + 30 + r + nodeH / 2;
+        box = ringBox(centerX, centerY);
+      }
+      occupied.push(box);
+      order.forEach((id, i) => {
+        const n = nodeById.get(id);
+        if (!n) return;
+        const t = (i / order.length) * Math.PI * 2;
+        n.position = {
+          x: centerX + Math.cos(t) * r,
+          y: centerY + Math.sin(t) * r,
+        };
+      });
+
+      if (avgConsumerY === null) fallbackY = box.y1 + 90;
+    });
+  return { nodes, edges };
+});
+
+const lineFlowNodes = computed(() => lineFlow.value.nodes);
+const lineFlowEdges = computed(() => lineFlow.value.edges);
+
 const leafColumns = [
   { name: 'name', label: '物品', field: 'name', align: 'left' as const },
   { name: 'amount', label: '数量', field: 'amount', align: 'right' as const },
@@ -1137,7 +1835,7 @@ const catalystRows = computed<LeafRow[]>(() => {
       id: itemId,
       itemId: itemId,
       name: def?.name ?? itemId,
-      amount: formatAmount(amount)
+      amount: formatAmount(amount),
     });
   });
   rows.sort((a, b) => a.name.localeCompare(b.name));
@@ -1451,7 +2149,21 @@ const totalPollution = computed(() => {
   background: #fff;
 }
 
+:deep(#planner-line-flow .vue-flow__edges) {
+  z-index: 50;
+  pointer-events: none;
+}
+
+:deep(#planner-line-flow .vue-flow__nodes) {
+  z-index: 10;
+}
+
+:deep(#planner-line-flow .vue-flow__edge-path) {
+  stroke-linecap: round;
+}
+
 .planner__flow-node {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1465,6 +2177,30 @@ const totalPollution = computed(() => {
 
 .planner__flow-node--fluid {
   min-width: 180px;
+}
+
+.planner__handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+}
+
+.planner__flow-node--machine {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.planner__flow-node-icon-fallback {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+  user-select: none;
 }
 
 .planner__flow-node-text {

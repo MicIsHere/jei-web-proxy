@@ -32,6 +32,10 @@ export type RequirementNode =
     catalysts: StackItem[];
     cycle: boolean;
     cycleSeed?: boolean;
+    cycleKeys?: ItemKey[];
+    cycleFactor?: number;
+    cycleAmountNeeded?: number;
+    cycleSeedAmount?: number;
   }
   | {
     kind: 'fluid';
@@ -491,6 +495,10 @@ export function buildRequirementTree(args: {
         catalysts: [],
         cycle: true,
         ...(growth ? { cycleSeed: true } : {}),
+        ...(cycleKeys.length ? { cycleKeys } : {}),
+        ...(cycleFactor > 0 ? { cycleFactor } : {}),
+        cycleAmountNeeded: amountNeeded,
+        cycleSeedAmount: seedAmount,
       };
     }
     visiting.add(h);
@@ -599,6 +607,10 @@ export type EnhancedRequirementNode =
     catalysts: StackItem[];
     cycle: boolean;
     cycleSeed?: boolean;
+    cycleKeys?: ItemKey[];
+    cycleFactor?: number;
+    cycleAmountNeeded?: number;
+    cycleSeedAmount?: number;
     // Enhanced properties
     perSecond?: number;
     perMinute?: number;
