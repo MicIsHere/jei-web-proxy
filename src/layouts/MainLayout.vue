@@ -41,6 +41,24 @@ const linksList: EssentialLinkProps[] = [
     link: 'https://github.com/AndreaFrederica/jei-web',
   },
   {
+    title: 'Blog',
+    caption: 'blog.sirrus.cc',
+    icon: 'article',
+    link: 'https://blog.sirrus.cc',
+  },
+  {
+    title: 'Wiki',
+    caption: 'wiki.sirrus.cc',
+    icon: 'menu_book',
+    link: 'https://wiki.sirrus.cc',
+  },
+  {
+    title: '小说助手',
+    caption: 'anh.sirrus.cc',
+    icon: 'auto_stories',
+    link: 'https://anh.sirrus.cc',
+  },
+  {
     title: 'License',
     caption: 'Mozilla Public License 2.0',
     icon: 'gavel',
