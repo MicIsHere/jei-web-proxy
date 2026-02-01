@@ -446,7 +446,7 @@
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
-                :pan-on-drag="[1, 2]"
+                :pan-on-drag="true"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
               >
@@ -583,7 +583,7 @@
                 :zoom-on-double-click="false"
                 :min-zoom="0.2"
                 :max-zoom="2"
-                :pan-on-drag="[1, 2]"
+                :pan-on-drag="true"
                 no-pan-class-name="nopan"
                 no-drag-class-name="nodrag"
               >
