@@ -483,10 +483,97 @@
 
         <!-- 节点图视图 -->
         <q-tab-panel name="graph" class="q-pa-none">
-          <div class="column items-center justify-center q-pa-xl">
-            <q-icon name="account_tree" size="64px" color="grey-5" class="q-mb-md" />
-            <div class="text-h6 text-grey-6">节点图视图</div>
-            <div class="text-caption text-grey-5 q-mt-sm">正在开发中...</div>
+          <div class="column q-gutter-md">
+            <div class="row items-center q-gutter-sm">
+              <div class="text-caption text-grey-8">显示单位</div>
+              <q-select
+                dense
+                filled
+                emit-value
+                map-options
+                style="min-width: 120px"
+                :options="rateUnitOptions"
+                :model-value="graphDisplayUnit"
+                @update:model-value="(v) => (graphDisplayUnit = v)"
+              />
+              <q-toggle v-model="graphShowFluids" dense label="显示流体" />
+            </div>
+            <div v-if="graphFlowNodes.length" class="planner__graph">
+              <VueFlow
+                :nodes="graphFlowNodes"
+                :edges="graphFlowEdges"
+                :nodes-draggable="false"
+                :nodes-connectable="false"
+                :elements-selectable="false"
+                :zoom-on-double-click="false"
+                :min-zoom="0.3"
+                :max-zoom="2"
+                :pan-on-drag="true"
+                no-pan-class-name="nopan"
+                no-drag-class-name="nodrag"
+              >
+                <Background :gap="20" />
+                <Controls />
+                <MiniMap />
+                <template #node-graphItemNode="p">
+                  <div class="planner__flow-node nodrag nopan">
+                    <div class="planner__flow-node-icon">
+                      <stack-view
+                        class="nodrag nopan"
+                        :content="{
+                          kind: 'item',
+                          id: p.data.itemKey?.id ?? '__multi_target__',
+                          amount: 1,
+                          ...(p.data.itemKey?.meta !== undefined
+                            ? { meta: p.data.itemKey.meta }
+                            : {}),
+                          ...(p.data.itemKey?.nbt !== undefined ? { nbt: p.data.itemKey.nbt } : {}),
+                        }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                    </div>
+                    <div class="planner__flow-node-text">
+                      <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                      <div class="planner__flow-node-sub">
+                        {{ p.data.subtitle }}
+                        <q-badge v-if="p.data.machineCount" color="accent" class="q-ml-xs">
+                          x{{ p.data.machineCount }}
+                        </q-badge>
+                        <q-badge
+                          v-if="p.data.cycle"
+                          :color="p.data.cycleSeed ? 'positive' : 'negative'"
+                          class="q-ml-xs"
+                        >
+                          {{ p.data.cycleSeed ? 'cycle seed' : 'cycle' }}
+                        </q-badge>
+                      </div>
+                    </div>
+                    <div v-if="p.data.machineItemId" class="planner__flow-node-machine">
+                      <stack-view
+                        class="nodrag nopan"
+                        :content="{ kind: 'item', id: p.data.machineItemId, amount: 1 }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                    </div>
+                  </div>
+                </template>
+                <template #node-graphFluidNode="p">
+                  <div class="planner__flow-node planner__flow-node--fluid nodrag nopan">
+                    <div class="planner__flow-node-text">
+                      <div class="planner__flow-node-title">{{ p.data.title }}</div>
+                      <div class="planner__flow-node-sub">{{ p.data.subtitle }}</div>
+                    </div>
+                  </div>
+                </template>
+              </VueFlow>
+            </div>
+            <div v-else class="text-center text-grey q-pa-lg">暂无节点</div>
           </div>
         </q-tab-panel>
 
@@ -501,10 +588,110 @@
 
         <!-- 计算器视图 -->
         <q-tab-panel name="calc" class="q-pa-none">
-          <div class="column items-center justify-center q-pa-xl">
-            <q-icon name="calculate" size="64px" color="grey-5" class="q-mb-md" />
-            <div class="text-h6 text-grey-6">计算器视图</div>
-            <div class="text-caption text-grey-5 q-mt-sm">正在开发中...</div>
+          <div class="column q-gutter-md">
+            <div class="row items-center q-gutter-sm">
+              <div class="text-caption text-grey-8">显示单位</div>
+              <q-select
+                dense
+                filled
+                emit-value
+                map-options
+                style="min-width: 120px"
+                :options="rateUnitOptions"
+                :model-value="calcDisplayUnit"
+                @update:model-value="(v) => (calcDisplayUnit = v)"
+              />
+            </div>
+
+            <div class="row q-col-gutter-md">
+              <div class="col-12 col-md-4">
+                <q-card flat bordered class="q-pa-md">
+                  <div class="text-subtitle2">总功耗</div>
+                  <div class="text-h6">{{ formatAmount(calcTotals?.power ?? 0) }} kW</div>
+                  <div class="text-caption text-grey-7">
+                    污染 {{ formatAmount(calcTotals?.pollution ?? 0) }} / 分
+                  </div>
+                </q-card>
+              </div>
+              <div class="col-12 col-md-4">
+                <q-card flat bordered class="q-pa-md">
+                  <div class="text-subtitle2">设备总数</div>
+                  <div class="text-h6">{{ formatAmount(calcMachineTotal) }}</div>
+                  <div class="text-caption text-grey-7">{{ calcMachineRows.length }} 种设备</div>
+                </q-card>
+              </div>
+              <div class="col-12 col-md-4">
+                <q-card flat bordered class="q-pa-md">
+                  <div class="text-subtitle2">产出种类</div>
+                  <div class="text-h6">{{ calcItemRows.length }}</div>
+                  <div class="text-caption text-grey-7">按节点汇总</div>
+                </q-card>
+              </div>
+            </div>
+
+            <q-card flat bordered class="q-pa-md">
+              <div class="text-subtitle2 q-mb-md">设备需求</div>
+              <q-table
+                dense
+                flat
+                :rows="calcMachineRows"
+                :columns="calcMachineColumns"
+                row-key="id"
+                :rows-per-page-options="[0]"
+              >
+                <template #body-cell-name="props">
+                  <q-td :props="props">
+                    <div class="row items-center q-gutter-sm">
+                      <stack-view
+                        :content="{ kind: 'item', id: props.row.id, amount: 1 }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                      <span>{{ props.row.name }}</span>
+                    </div>
+                  </q-td>
+                </template>
+                <template #body-cell-count="props">
+                  <q-td :props="props" class="text-right">
+                    {{ formatAmount(props.row.count) }}
+                  </q-td>
+                </template>
+              </q-table>
+            </q-card>
+
+            <q-card flat bordered class="q-pa-md">
+              <div class="text-subtitle2 q-mb-md">产出速率</div>
+              <q-table
+                dense
+                flat
+                :rows="calcItemRows"
+                :columns="calcItemColumns"
+                row-key="id"
+                :rows-per-page-options="[0]"
+              >
+                <template #body-cell-name="props">
+                  <q-td :props="props">
+                    <div class="row items-center q-gutter-sm">
+                      <stack-view
+                        :content="{ kind: 'item', id: props.row.id, amount: 1 }"
+                        :item-defs-by-key-hash="itemDefsByKeyHash"
+                        variant="slot"
+                        :show-name="false"
+                        :show-subtitle="false"
+                      />
+                      <span>{{ props.row.name }}</span>
+                    </div>
+                  </q-td>
+                </template>
+                <template #body-cell-rate="props">
+                  <q-td :props="props" class="text-right">
+                    {{ formatAmount(props.row.rate) }}
+                  </q-td>
+                </template>
+              </q-table>
+            </q-card>
           </div>
         </q-tab-panel>
       </q-tab-panels>
@@ -527,13 +714,22 @@ import { DEFAULT_BELT_SPEED } from 'src/jei/planner/units';
 import {
   type PlannerDecision,
   type RequirementNode,
-  type BuildTreeResult,
+  type EnhancedBuildTreeResult,
+  type EnhancedRequirementNode,
   autoPlanSelections,
   computePlannerDecisions,
   extractRecipeStacks,
-  buildRequirementTree,
+  buildEnhancedRequirementTree,
 } from 'src/jei/planner/planner';
 import StackView from 'src/jei/components/StackView.vue';
+import { Background } from '@vue-flow/background';
+import { Controls } from '@vue-flow/controls';
+import { VueFlow, type Edge, type Node, MarkerType } from '@vue-flow/core';
+import { MiniMap } from '@vue-flow/minimap';
+import '@vue-flow/core/dist/style.css';
+import '@vue-flow/core/dist/theme-default.css';
+import '@vue-flow/controls/dist/style.css';
+import '@vue-flow/minimap/dist/style.css';
 
 interface Target {
   itemKey: ItemKey;
@@ -560,7 +756,7 @@ const allDecisions = ref<PlannerDecision[]>([]);
 const selectedRecipeIdByItemKeyHash = ref<Map<string, string>>(new Map());
 const selectedItemIdByTagId = ref<Map<string, ItemId>>(new Map());
 const planningStarted = ref(false);
-const mergedTree = ref<BuildTreeResult | null>(null);
+const mergedTree = ref<EnhancedBuildTreeResult | null>(null);
 const mergedRootItemKey = ref<ItemKey | null>(null);
 
 const rateUnitOptions = [
@@ -572,6 +768,9 @@ const rateUnitOptions = [
 const treeDisplayMode = ref<'list' | 'compact'>('list');
 const treeDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
 const collapsed = ref<Set<string>>(new Set());
+const graphDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
+const graphShowFluids = ref(true);
+const calcDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
 
 const pendingDecisions = computed(() => {
   return allDecisions.value.filter((d: PlannerDecision) => {
@@ -659,7 +858,7 @@ const cycleSeedEntries = computed<CycleSeedInfo[]>(() => {
             itemKey: node.itemKey,
             amountNeeded,
             seedAmount,
-            cycleFactor: node.cycleFactor,
+            ...(node.cycleFactor !== undefined ? { cycleFactor: node.cycleFactor } : {}),
           });
         }
       }
@@ -692,18 +891,26 @@ const buildMergedTree = () => {
   // 3. 生成统一的树结构
 
   try {
-    const trees: BuildTreeResult[] = targets.value.map((target) =>
-      buildRequirementTree({
-        pack: props.pack!,
-        index: props.index!,
-        rootItemKey: target.itemKey,
-        targetAmount: target.rate,
-        targetUnit: target.unit,
-        selectedRecipeIdByItemKeyHash: selectedRecipeIdByItemKeyHash.value,
-        selectedItemIdByTagId: selectedItemIdByTagId.value,
-        maxDepth: 20,
-      }),
-    );
+    const trees = targets.value
+      .map((target) =>
+        buildEnhancedRequirementTree({
+          pack: props.pack!,
+          index: props.index!,
+          rootItemKey: target.itemKey,
+          targetAmount: target.rate,
+          targetUnit: target.unit,
+          selectedRecipeIdByItemKeyHash: selectedRecipeIdByItemKeyHash.value,
+          selectedItemIdByTagId: selectedItemIdByTagId.value,
+          maxDepth: 20,
+        }),
+      )
+      .filter((tree): tree is EnhancedBuildTreeResult => Boolean(tree));
+
+    if (trees.length === 0) {
+      mergedTree.value = null;
+      mergedRootItemKey.value = null;
+      return;
+    }
 
     const leafItemTotals = new Map<ItemId, number>();
     const leafFluidTotals = new Map<string, number>();
@@ -724,13 +931,32 @@ const buildMergedTree = () => {
       }
     }
 
+    const totals = {
+      machines: new Map<ItemId, number>(),
+      perSecond: new Map<string, number>(),
+      power: 0,
+      pollution: 0,
+    } satisfies EnhancedBuildTreeResult['totals'];
+
+    for (const tree of trees) {
+      for (const [itemId, count] of tree.totals.machines.entries()) {
+        totals.machines.set(itemId, (totals.machines.get(itemId) ?? 0) + count);
+      }
+      for (const [itemId, perSecond] of tree.totals.perSecond.entries()) {
+        totals.perSecond.set(itemId, (totals.perSecond.get(itemId) ?? 0) + perSecond);
+      }
+      totals.power += tree.totals.power;
+      totals.pollution += tree.totals.pollution;
+    }
+
     if (trees.length === 1) {
-      mergedTree.value = trees[0];
-      mergedRootItemKey.value = trees[0].root.kind === 'item' ? trees[0].root.itemKey : null;
+      const singleTree = trees[0];
+      mergedTree.value = singleTree;
+      mergedRootItemKey.value = singleTree.root.kind === 'item' ? singleTree.root.itemKey : null;
       return;
     }
 
-    const virtualRoot: RequirementNode = {
+    const virtualRoot: EnhancedRequirementNode = {
       kind: 'item',
       nodeId: 'virtual-root',
       itemKey: { id: '__multi_target__' },
@@ -745,6 +971,7 @@ const buildMergedTree = () => {
       leafItemTotals,
       leafFluidTotals,
       catalysts,
+      totals,
     };
     mergedRootItemKey.value = virtualRoot.itemKey;
   } catch (e) {
@@ -1006,6 +1233,16 @@ function nodeDisplayRate(node: RequirementNode): number {
   return amount;
 }
 
+function nodeDisplayRateByUnit(
+  node: RequirementNode,
+  unit: 'per_second' | 'per_minute' | 'per_hour',
+): number {
+  const amount = nodeDisplayAmount(node);
+  if (unit === 'per_second') return amount / 60;
+  if (unit === 'per_hour') return amount * 60;
+  return amount;
+}
+
 function nodeBeltsText(node: RequirementNode): string {
   if (node.kind !== 'item') return '';
   const perSecond = nodeDisplayAmount(node) / 60;
@@ -1037,6 +1274,184 @@ function formatAmount(n: number) {
   const rounded = Math.round(n * 1000) / 1000;
   return rounded;
 }
+
+function unitSuffix(unit: 'per_second' | 'per_minute' | 'per_hour') {
+  if (unit === 'per_second') return '/s';
+  if (unit === 'per_hour') return '/h';
+  return '/min';
+}
+
+function rateByUnitFromPerSecond(
+  perSecond: number,
+  unit: 'per_second' | 'per_minute' | 'per_hour',
+) {
+  if (unit === 'per_second') return perSecond;
+  if (unit === 'per_hour') return perSecond * 3600;
+  return perSecond * 60;
+}
+
+type GraphNodeData = {
+  kind: 'item' | 'fluid';
+  title: string;
+  subtitle: string;
+  itemKey?: ItemKey;
+  machineItemId?: ItemId;
+  machineCount?: number;
+  cycle?: boolean;
+  cycleSeed?: boolean;
+};
+
+const graphFlow = computed(() => {
+  if (!mergedTree.value) return { nodes: [] as Node<GraphNodeData>[], edges: [] as Edge[] };
+
+  const nodes: Node<GraphNodeData>[] = [];
+  const edges: Edge[] = [];
+  const nodeW = 240;
+  const nodeH = 64;
+  const gapX = 64;
+  const gapY = 96;
+  const pad = 16;
+
+  const leafSpan = new WeakMap<RequirementNode, number>();
+  const isVisible = (node: RequirementNode) => node.kind !== 'fluid' || graphShowFluids.value;
+
+  const countLeaves = (node: RequirementNode): number => {
+    if (!isVisible(node)) return 0;
+    if (node.kind === 'item') {
+      const visibleChildren = node.children.filter(isVisible);
+      if (visibleChildren.length === 0) {
+        leafSpan.set(node, 1);
+        return 1;
+      }
+      const sum = visibleChildren.reduce((acc, child) => acc + countLeaves(child), 0);
+      const span = Math.max(1, sum);
+      leafSpan.set(node, span);
+      return span;
+    }
+    leafSpan.set(node, 1);
+    return 1;
+  };
+
+  countLeaves(mergedTree.value.root);
+
+  const walk = (
+    node: RequirementNode,
+    depth: number,
+    leftX: number,
+    path: string,
+  ): string | null => {
+    if (!isVisible(node)) return null;
+
+    const span = leafSpan.get(node) ?? 1;
+    const nodeId = `g:${path}`;
+    const x = leftX + (span * (nodeW + gapX) - nodeW) / 2;
+    const y = pad + depth * (nodeH + gapY);
+
+    if (node.kind === 'item') {
+      const machineCount = finiteOr(
+        (node as EnhancedRequirementNode & { machineCount?: number }).machineCount,
+        0,
+      );
+      const rate = nodeDisplayRateByUnit(node, graphDisplayUnit.value);
+      const subtitle = `${formatAmount(rate)}${unitSuffix(graphDisplayUnit.value)}`;
+
+      nodes.push({
+        id: nodeId,
+        type: 'graphItemNode',
+        position: { x, y },
+        draggable: false,
+        selectable: false,
+        data: {
+          kind: 'item',
+          itemKey: node.itemKey,
+          title: itemName(node.itemKey),
+          subtitle,
+          ...(node.machineItemId !== undefined ? { machineItemId: node.machineItemId } : {}),
+          ...(machineCount > 0 ? { machineCount: Math.round(machineCount) } : {}),
+          cycle: node.cycle,
+          cycleSeed: !!node.cycleSeed,
+        },
+      });
+
+      let childLeft = leftX;
+      node.children.forEach((c, idx) => {
+        const childSpan = leafSpan.get(c) ?? 1;
+        const childId = walk(c, depth + 1, childLeft, `${path}.${idx}`);
+        if (!childId) return;
+        edges.push({
+          id: `${nodeId}->${childId}`,
+          source: nodeId,
+          target: childId,
+          type: 'smoothstep',
+          markerEnd: MarkerType.ArrowClosed,
+        });
+        childLeft += childSpan * (nodeW + gapX);
+      });
+    } else {
+      const rate = nodeDisplayRateByUnit(node, graphDisplayUnit.value);
+      const subtitle = `${formatAmount(rate)}${unitSuffix(graphDisplayUnit.value)}`;
+      nodes.push({
+        id: nodeId,
+        type: 'graphFluidNode',
+        position: { x, y },
+        draggable: false,
+        selectable: false,
+        data: {
+          kind: 'fluid',
+          title: node.id,
+          subtitle: node.unit ? `${subtitle} ${node.unit}` : subtitle,
+        },
+      });
+    }
+
+    return nodeId;
+  };
+
+  walk(mergedTree.value.root, 0, pad, '0');
+  return { nodes, edges };
+});
+
+const graphFlowNodes = computed(() => graphFlow.value.nodes);
+const graphFlowEdges = computed(() => graphFlow.value.edges);
+
+const calcTotals = computed(() => mergedTree.value?.totals ?? null);
+
+const calcMachineRows = computed(() => {
+  if (!calcTotals.value) return [] as Array<{ id: ItemId; name: string; count: number }>;
+  return Array.from(calcTotals.value.machines.entries())
+    .map(([id, count]) => ({ id, name: getItemName(id), count }))
+    .sort((a, b) => b.count - a.count);
+});
+
+const calcItemRows = computed(() => {
+  if (!calcTotals.value) return [] as Array<{ id: ItemId; name: string; rate: number }>;
+  return Array.from(calcTotals.value.perSecond.entries())
+    .map(([id, perSecond]) => ({
+      id,
+      name: getItemName(id),
+      rate: rateByUnitFromPerSecond(perSecond, calcDisplayUnit.value),
+    }))
+    .sort((a, b) => b.rate - a.rate);
+});
+
+const calcMachineTotal = computed(() => {
+  return calcMachineRows.value.reduce((sum, r) => sum + r.count, 0);
+});
+
+const calcMachineColumns = [
+  { name: 'name', label: '设备', field: 'name', align: 'left' as const },
+  { name: 'count', label: '数量', field: 'count', align: 'right' as const },
+];
+
+const calcItemColumns = computed(() => [
+  { name: 'name', label: '物品', field: 'name', align: 'left' as const },
+  {
+    name: 'rate',
+    label: `产出速率 (${unitSuffix(calcDisplayUnit.value)})`,
+    field: 'rate',
+    align: 'right' as const,
+  },
+]);
 
 const getRateUnitLabel = (unit: 'per_second' | 'per_minute' | 'per_hour') => {
   return rateUnitOptions.find((o) => o.value === unit)?.label ?? unit;
@@ -1222,6 +1637,63 @@ defineExpose({
   min-width: 0;
 }
 
+.planner__graph {
+  height: 520px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.planner__flow-node {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: #fff;
+  min-width: 220px;
+  max-width: 320px;
+}
+
+.planner__flow-node--fluid {
+  min-width: 180px;
+}
+
+.planner__flow-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.planner__flow-node-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.planner__flow-node-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.planner__flow-node-sub {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.planner__flow-node-machine {
+  flex: 0 0 auto;
+}
+
 .decision-card {
   animation: fadeIn 0.3s ease-in;
 }
@@ -1240,6 +1712,20 @@ defineExpose({
 /* 暗色模式支持 */
 .body--dark .advanced-planner {
   background-color: var(--q-dark);
+}
+
+.body--dark .planner__graph {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.body--dark .planner__flow-node {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.body--dark .planner__flow-node-sub {
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .body--dark .decision-card {
