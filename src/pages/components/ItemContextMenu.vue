@@ -34,6 +34,13 @@
         <q-item-section>Planner (P)</q-item-section>
       </q-item>
       <q-separator />
+      <q-item clickable v-close-popup @click="$emit('action', 'advanced')">
+        <q-item-section avatar>
+          <q-icon name="add_chart" size="xs" color="primary" />
+        </q-item-section>
+        <q-item-section>添加到高级计划 (D)</q-item-section>
+      </q-item>
+      <q-separator />
       <q-item clickable v-close-popup @click="$emit('action', 'fav')">
         <q-item-section avatar>
           <q-icon
@@ -61,7 +68,7 @@ defineProps<{
 defineEmits<{
   'update:open': [value: boolean];
   hide: [];
-  action: [action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav'];
+  action: [action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav' | 'advanced'];
 }>();
 
 const menuRef = ref();

@@ -46,10 +46,12 @@
 
       <!-- 中间区域面板 -->
       <center-panel
+        ref="centerPanelRef"
         :is-mobile="isMobile"
         :mobile-tab="mobileTab"
         :collapsed="settingsStore.panelCollapsed"
         :recipe-view-mode="settingsStore.recipeViewMode"
+        :center-tab="centerTab"
         :nav-stack-length="navStack.length"
         :current-item-title="currentItemTitle"
         :active-tab="activeTab"
@@ -68,6 +70,7 @@
         :planner-initial-state="plannerInitialState"
         :planner-tab="plannerTab ?? 'tree'"
         @update:collapsed="settingsStore.setPanelCollapsed($event)"
+        @update:center-tab="centerTab = $event"
         @update:active-tab="activeTab = $event"
         @update:active-type-key="activeTypeKey = $event"
         @go-back="goBackInDialog"
@@ -326,6 +329,7 @@ const pageSize = ref(120);
 const settingsOpen = ref(false);
 const dialogOpen = ref(false);
 const contextMenuRef = ref();
+const centerPanelRef = ref();
 const contextMenuOpen = ref(false);
 const contextMenuKeyHash = ref<string | null>(null);
 
@@ -354,7 +358,7 @@ function onTouchHold(evt: unknown, keyHash: string) {
   contextMenuRef.value?.show();
 }
 
-function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav') {
+function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | 'fav' | 'advanced') {
   const keyHash = contextMenuKeyHash.value;
   if (!keyHash) return;
 
@@ -362,6 +366,18 @@ function onContextMenuAction(action: 'recipes' | 'uses' | 'wiki' | 'planner' | '
     toggleFavorite(keyHash);
     return;
   }
+
+  if (action === 'advanced') {
+    // 切换到高级计划器标签页
+    centerTab.value = 'advanced';
+    // 获取物品信息并添加到高级计划器
+    const itemDef = itemDefsByKeyHash.value[keyHash];
+    if (itemDef && centerPanelRef.value) {
+      centerPanelRef.value.addToAdvancedPlanner(itemDef.key, itemDef.name);
+    }
+    return;
+  }
+
   openDialogByKeyHash(keyHash, action);
 }
 
@@ -376,6 +392,7 @@ watch(
   },
 );
 
+const centerTab = ref<'recipe' | 'advanced'>('recipe');
 const activeTab = ref<'recipes' | 'uses' | 'wiki' | 'planner'>('recipes');
 const lastRecipeTab = ref<'recipes' | 'uses'>('recipes');
 const activeRecipesTypeKey = ref('');
@@ -1453,6 +1470,14 @@ function onKeyDown(e: KeyboardEvent) {
   } else if (key === 'a' || key === 'A') {
     e.preventDefault();
     toggleFavorite(hoveredKeyHash.value);
+  } else if (key === 'd' || key === 'D') {
+    e.preventDefault();
+    // 添加到高级计划器
+    centerTab.value = 'advanced';
+    const itemDef = itemDefsByKeyHash.value[hoveredKeyHash.value];
+    if (itemDef && centerPanelRef.value) {
+      centerPanelRef.value.addToAdvancedPlanner(itemDef.key, itemDef.name);
+    }
   }
 }
 

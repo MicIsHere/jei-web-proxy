@@ -16,18 +16,26 @@
 
     <!-- 展开状态下的内容 -->
     <template v-if="!collapsed && recipeViewMode === 'panel'">
+      <!-- 顶部标题栏 -->
       <div class="jei-panel__head row items-center q-gutter-sm col-auto">
-        <div class="text-subtitle2">{{ navStackLength ? currentItemTitle : '中间区域' }}</div>
+        <div class="text-subtitle2">{{ currentViewTitle }}</div>
         <q-space />
         <q-btn
-          v-if="navStackLength > 1"
+          v-if="centerTab === 'recipe' && navStackLength > 1"
           flat
           round
           dense
           icon="arrow_back"
           @click="$emit('go-back')"
         />
-        <q-btn v-if="navStackLength" flat round dense icon="close" @click="$emit('close')" />
+        <q-btn
+          v-if="centerTab === 'recipe' && navStackLength"
+          flat
+          round
+          dense
+          icon="close"
+          @click="$emit('close')"
+        />
         <q-btn
           flat
           dense
@@ -39,55 +47,92 @@
           <q-tooltip>收起</q-tooltip>
         </q-btn>
       </div>
-      <div v-if="navStackLength" class="jei-panel__tabs col-auto">
-        <q-tabs
-          :model-value="activeTab"
-          @update:model-value="$emit('update:active-tab', $event)"
-          dense
-          outside-arrows
-          mobile-arrows
-          inline-label
-          class="q-px-sm q-pt-sm"
-        >
-          <q-tab name="recipes" label="Recipes (R)" />
-          <q-tab name="uses" label="Uses (U)" />
-          <q-tab name="wiki" label="Wiki (W)" />
-          <q-tab name="planner" label="Planner (P)" />
-        </q-tabs>
-      </div>
+
+      <!-- 主 Tabs -->
+      <q-tabs
+        :model-value="centerTab"
+        @update:model-value="$emit('update:center-tab', $event)"
+        dense
+        class="q-px-sm"
+      >
+        <q-tab name="recipe" label="合成查看器" />
+        <q-tab name="advanced" label="高级计划器" />
+      </q-tabs>
+
       <q-separator />
-      <div v-show="!collapsed && navStackLength" class="col jei-panel__body">
-        <recipe-content-view
-          v-if="navStackLength"
-          :pack="pack ?? null"
-          :index="index ?? null"
-          :current-item-key="currentItemKey ?? null"
-          :current-item-def="currentItemDef ?? null"
-          :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
-          :rendered-description="renderedDescription ?? ''"
-          :active-tab="activeTab"
-          :active-type-key="activeTypeKey ?? ''"
-          @update:active-type-key="$emit('update:active-type-key', $event)"
-          :active-recipe-groups="activeRecipeGroups ?? []"
-          :all-recipe-groups="allRecipeGroups ?? []"
-          :type-machine-icons="typeMachineIcons ?? []"
-          :recipes-by-id="recipesById ?? new Map()"
-          :recipe-types-by-key="recipeTypesByKey ?? new Map()"
-          :planner-initial-state="plannerInitialState ?? null"
-          :planner-tab="plannerTab ?? 'tree'"
-          panel-class="jei-panel__panels"
-          @item-click="$emit('item-click', $event)"
-          @machine-item-click="$emit('machine-item-click', $event)"
-          @save-plan="$emit('save-plan', $event)"
-          @state-change="$emit('state-change', $event)"
-          @item-mouseenter="$emit('item-mouseenter', $event)"
-          @item-mouseleave="$emit('item-mouseleave')"
-          @item-context-menu="(...args) => $emit('item-context-menu', ...args)"
-          @item-touch-hold="(...args) => $emit('item-touch-hold', ...args)"
-        />
-      </div>
-      <div v-show="!collapsed && !navStackLength" class="q-pa-md text-caption text-grey-7 col">
-        选择物品以查看 Recipes/Uses。
+
+      <!-- 内容区域 - 使用 keep-alive 保持组件状态 -->
+      <div class="col jei-panel__body">
+        <q-tab-panels
+          :model-value="centerTab"
+          animated
+          keep-alive
+          class="jei-panel__tab-panels"
+        >
+          <!-- 合成查看器面板 -->
+          <q-tab-panel name="recipe" class="q-pa-none jei-panel__tab-panel">
+            <div v-if="navStackLength" class="jei-panel__tabs col-auto">
+              <q-tabs
+                :model-value="activeTab"
+                @update:model-value="$emit('update:active-tab', $event)"
+                dense
+                outside-arrows
+                mobile-arrows
+                inline-label
+                class="q-px-sm q-pt-sm"
+              >
+                <q-tab name="recipes" label="Recipes (R)" />
+                <q-tab name="uses" label="Uses (U)" />
+                <q-tab name="wiki" label="Wiki (W)" />
+                <q-tab name="planner" label="Planner (P)" />
+              </q-tabs>
+            </div>
+            <q-separator v-if="navStackLength" />
+            <div v-show="navStackLength" class="jei-panel__content">
+              <recipe-content-view
+                v-if="navStackLength"
+                :pack="pack ?? null"
+                :index="index ?? null"
+                :current-item-key="currentItemKey ?? null"
+                :current-item-def="currentItemDef ?? null"
+                :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
+                :rendered-description="renderedDescription ?? ''"
+                :active-tab="activeTab"
+                :active-type-key="activeTypeKey ?? ''"
+                @update:active-type-key="$emit('update:active-type-key', $event)"
+                :active-recipe-groups="activeRecipeGroups ?? []"
+                :all-recipe-groups="allRecipeGroups ?? []"
+                :type-machine-icons="typeMachineIcons ?? []"
+                :recipes-by-id="recipesById ?? new Map()"
+                :recipe-types-by-key="recipeTypesByKey ?? new Map()"
+                :planner-initial-state="plannerInitialState ?? null"
+                :planner-tab="plannerTab ?? 'tree'"
+                panel-class="jei-panel__panels"
+                @item-click="$emit('item-click', $event)"
+                @machine-item-click="$emit('machine-item-click', $event)"
+                @save-plan="$emit('save-plan', $event)"
+                @state-change="$emit('state-change', $event)"
+                @item-mouseenter="$emit('item-mouseenter', $event)"
+                @item-mouseleave="$emit('item-mouseleave')"
+                @item-context-menu="(...args) => $emit('item-context-menu', ...args)"
+                @item-touch-hold="(...args) => $emit('item-touch-hold', ...args)"
+              />
+            </div>
+            <div v-show="!navStackLength" class="q-pa-md text-caption text-grey-7">
+              选择物品以查看 Recipes/Uses。
+            </div>
+          </q-tab-panel>
+
+          <!-- 高级计划器面板 -->
+          <q-tab-panel name="advanced" class="q-pa-none jei-panel__tab-panel">
+            <advanced-planner
+              ref="advancedPlannerRef"
+              :pack="pack ?? null"
+              :index="index ?? null"
+              :item-defs-by-key-hash="itemDefsByKeyHash ?? {}"
+            />
+          </q-tab-panel>
+        </q-tab-panels>
       </div>
     </template>
     <template v-else-if="!collapsed">
@@ -98,10 +143,12 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import type { PackData, ItemDef, ItemKey } from 'src/jei/types';
 import type { JeiIndex } from 'src/jei/indexing/buildIndex';
 import type { PlannerInitialState, PlannerLiveState } from 'src/jei/planner/plannerUi';
 import RecipeContentView from './RecipeContentView.vue';
+import AdvancedPlanner from './AdvancedPlanner.vue';
 
 interface RecipeGroup {
   typeKey: string;
@@ -116,11 +163,12 @@ interface MachineIcon {
   machineItemId: string;
 }
 
-defineProps<{
+const props = defineProps<{
   isMobile: boolean;
   mobileTab: string;
   collapsed: boolean;
   recipeViewMode: 'dialog' | 'panel';
+  centerTab?: 'recipe' | 'advanced';
   navStackLength: number;
   currentItemTitle: string;
   activeTab: 'recipes' | 'uses' | 'wiki' | 'planner';
@@ -142,6 +190,7 @@ defineProps<{
 
 defineEmits<{
   'update:collapsed': [value: boolean];
+  'update:center-tab': [value: 'recipe' | 'advanced'];
   'update:active-tab': [value: 'recipes' | 'uses' | 'wiki' | 'planner'];
   'update:active-type-key': [typeKey: string];
   'go-back': [];
@@ -155,6 +204,23 @@ defineEmits<{
   'item-context-menu': [evt: Event, keyHash: string];
   'item-touch-hold': [evt: unknown, keyHash: string];
 }>();
+
+const advancedPlannerRef = ref<InstanceType<typeof AdvancedPlanner>>();
+
+const currentViewTitle = computed(() => {
+  if (props.centerTab === 'advanced') {
+    return '高级计划器';
+  }
+  return props.navStackLength ? props.currentItemTitle : '中间区域';
+});
+
+const addToAdvancedPlanner = (itemKey: ItemKey, itemName: string) => {
+  advancedPlannerRef.value?.addTarget(itemKey, itemName);
+};
+
+defineExpose({
+  addToAdvancedPlanner,
+});
 </script>
 
 <style scoped>
@@ -212,6 +278,26 @@ defineEmits<{
 }
 
 .jei-panel__body {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.jei-panel__tab-panels {
+  height: 100%;
+  min-height: 0;
+}
+
+.jei-panel__tab-panel {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.jei-panel__content {
+  flex: 1;
   min-height: 0;
   overflow: auto;
 }
