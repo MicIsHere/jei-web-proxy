@@ -152,19 +152,19 @@
           </q-card>
         </div>
       </div>
-
     </q-card>
 
     <!-- 结果展示区 -->
-    <q-card v-if="planningComplete && mergedTree" flat bordered class="col q-pa-md q-mt-md advanced-planner__results">
+    <q-card
+      v-if="planningComplete && mergedTree"
+      flat
+      bordered
+      class="col q-pa-md q-mt-md advanced-planner__results"
+    >
       <div class="row items-center q-mb-md">
-        <div class="text-subtitle2">
-          多目标生产规划
-        </div>
+        <div class="text-subtitle2">多目标生产规划</div>
         <q-space />
-        <q-chip dense color="primary" text-color="white">
-          {{ targets.length }} 个目标
-        </q-chip>
+        <q-chip dense color="primary" text-color="white"> {{ targets.length }} 个目标 </q-chip>
       </div>
 
       <!-- 目标概览 -->
@@ -185,11 +185,13 @@
           </q-item-section>
           <q-item-section>
             <q-item-label>{{ target.itemName }}</q-item-label>
-            <q-item-label caption>{{ target.rate }} {{ getRateUnitLabel(target.unit) }}</q-item-label>
+            <q-item-label caption
+              >{{ target.rate }} {{ getRateUnitLabel(target.unit) }}</q-item-label
+            >
           </q-item-section>
         </q-item>
       </q-list>
-      
+
       <q-tabs v-model="activeTab" dense outside-arrows mobile-arrows inline-label>
         <q-tab name="summary" label="资源汇总" />
         <q-tab name="tree" label="合成树" />
@@ -204,9 +206,7 @@
         <q-tab-panel name="summary" class="q-pa-none">
           <div class="column q-gutter-md">
             <q-card flat bordered class="q-pa-md">
-              <div class="text-subtitle2 q-mb-md">
-                原材料需求 ({{ rawItemTotals.size }} 种)
-              </div>
+              <div class="text-subtitle2 q-mb-md">原材料需求 ({{ rawItemTotals.size }} 种)</div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item v-for="[itemId, amount] in rawItemEntries" :key="itemId">
                   <q-item-section avatar>
@@ -248,9 +248,14 @@
             </q-card>
 
             <q-card v-if="mergedTree.catalysts.size > 0" flat bordered class="q-pa-md">
-              <div class="text-subtitle2 q-mb-md">催化剂需求 ({{ mergedTree.catalysts.size }} 种)</div>
+              <div class="text-subtitle2 q-mb-md">
+                催化剂需求 ({{ mergedTree.catalysts.size }} 种)
+              </div>
               <q-list dense bordered separator class="rounded-borders">
-                <q-item v-for="[itemId, amount] in Array.from(mergedTree.catalysts.entries())" :key="itemId">
+                <q-item
+                  v-for="[itemId, amount] in Array.from(mergedTree.catalysts.entries())"
+                  :key="itemId"
+                >
                   <q-item-section avatar>
                     <stack-view
                       :content="{ kind: 'item', id: itemId, amount }"
@@ -286,9 +291,7 @@
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption>
-                      种子 {{ formatAmount(seed.seedAmount) }}
-                    </q-item-label>
+                    <q-item-label caption> 种子 {{ formatAmount(seed.seedAmount) }} </q-item-label>
                     <q-item-label caption v-if="seed.cycleFactor">
                       增长倍率 {{ formatAmount(seed.cycleFactor) }}
                     </q-item-label>
@@ -450,14 +453,23 @@
                   <div class="planner__tree-content">
                     <stack-view
                       v-if="row.node.kind === 'item'"
-                      :content="{ kind: 'item', id: row.node.itemKey.id, amount: nodeDisplayRate(row.node) }"
+                      :content="{
+                        kind: 'item',
+                        id: row.node.itemKey.id,
+                        amount: nodeDisplayRate(row.node),
+                      }"
                       :item-defs-by-key-hash="itemDefsByKeyHash"
                     />
                     <stack-view
                       v-else
                       :content="
                         row.node.unit
-                          ? { kind: 'fluid', id: row.node.id, amount: nodeDisplayRate(row.node), unit: row.node.unit }
+                          ? {
+                              kind: 'fluid',
+                              id: row.node.id,
+                              amount: nodeDisplayRate(row.node),
+                              unit: row.node.unit,
+                            }
                           : { kind: 'fluid', id: row.node.id, amount: nodeDisplayRate(row.node) }
                       "
                       :item-defs-by-key-hash="itemDefsByKeyHash"
@@ -672,13 +684,13 @@ watch(planningComplete, (complete) => {
 
 const buildMergedTree = () => {
   if (!props.pack || !props.index || targets.value.length === 0) return;
-  
+
   // 创建虚拟配方，将所有目标合并为一个输出
   // 为了实现多目标融合，我们需要：
   // 1. 分别为每个目标构建需求树
   // 2. 合并所有中间产物的需求
   // 3. 生成统一的树结构
-  
+
   try {
     const trees: BuildTreeResult[] = targets.value.map((target) =>
       buildRequirementTree({
@@ -859,7 +871,9 @@ const autoOptimize = () => {
       });
 
       // 合并选择结果
-      for (const [keyHash, recipeId] of Object.entries(autoSelections.selectedRecipeIdByItemKeyHash)) {
+      for (const [keyHash, recipeId] of Object.entries(
+        autoSelections.selectedRecipeIdByItemKeyHash,
+      )) {
         allRecipeSelections.set(keyHash, recipeId);
       }
 
@@ -1032,7 +1046,7 @@ const getItemName = (itemId: ItemId): string => {
   if (!props.index) return itemId;
   const keyHashes = props.index.itemKeyHashesByItemId.get(itemId) ?? [];
   const keyHash = keyHashes[0];
-  return keyHash ? props.itemDefsByKeyHash?.[keyHash]?.name ?? itemId : itemId;
+  return keyHash ? (props.itemDefsByKeyHash?.[keyHash]?.name ?? itemId) : itemId;
 };
 
 defineExpose({
