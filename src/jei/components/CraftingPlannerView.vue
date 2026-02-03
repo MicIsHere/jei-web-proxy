@@ -13,14 +13,18 @@
           @click="openSaveDialog"
         />
         <q-space />
-        <q-badge v-if="decisions.length" color="warning">{{ t('pendingChoices') }}{{ decisions.length }}</q-badge>
+        <q-badge v-if="decisions.length" color="warning"
+          >{{ t('pendingChoices') }}{{ decisions.length }}</q-badge
+        >
         <q-badge v-else color="positive">{{ t('completed') }}</q-badge>
       </div>
 
       <div v-if="decisions.length" class="column q-gutter-md q-mt-md">
         <div v-for="d in decisions" :key="decisionKey(d)" class="planner__decision">
           <div v-if="d.kind === 'item_recipe'" class="column q-gutter-sm">
-            <div class="text-caption text-grey-8">{{ itemName(d.itemKey) }}{{ t('chooseSynthesisMethod2') }}</div>
+            <div class="text-caption text-grey-8">
+              {{ itemName(d.itemKey) }}{{ t('chooseSynthesisMethod2') }}
+            </div>
             <q-select
               dense
               filled
@@ -103,7 +107,9 @@
           <div v-else class="column q-gutter-sm">
             <div class="row items-center q-gutter-sm">
               <div class="text-caption text-grey-8">tag {{ d.tagId }}：选择具体物品</div>
-              <q-badge v-if="!d.candidateItemIds.length" color="negative">{{ t('noOptions') }}</q-badge>
+              <q-badge v-if="!d.candidateItemIds.length" color="negative">{{
+                t('noOptions')
+              }}</q-badge>
             </div>
             <q-select
               dense

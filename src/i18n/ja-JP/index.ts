@@ -116,7 +116,7 @@ export default {
   plannerTabGraph: 'グラフ (G)',
   plannerTabLine: 'ライン (L)',
   plannerTabCalc: '計算 (C)',
-  
+
   // Advanced Planner Tabs
   startPlanning: '計画開始',
   synthesisTree: '合成ツリー',
@@ -124,15 +124,15 @@ export default {
   productionLine: '生産ライン',
   calculator: '計算機',
   displayUnit: '表示単位',
-  
+
   // Advanced Planner Graph Options
   showFluids: '流体表示',
   mergeRawMaterials: '原材料統合',
-  
+
   // Advanced Planner Line Options
   hideIntermediate: '中間製品非表示',
   showCycleSeeds: 'サイクルシード表示',
-  
+
   // Advanced Planner Details
   rawMaterialFluidRequirements: '原材料流体要件 ({count} 種類)',
   catalystRequirements: '触媒要件 ({count} 種類)',
@@ -140,7 +140,7 @@ export default {
   need: '必要',
   seeds: 'シード',
   growthFactor: '成長倍率',
-  
+
   // Dialog
   lineName: 'ライン名',
   save: '保存',
@@ -148,12 +148,12 @@ export default {
   perMinute: '/ 分',
   lineSelection: 'ライン選択',
   chooseSynthesisMethod2: '：合成方法を選択',
-  
+
   // Recipe Content
   noTags: 'タグなし',
   description: '説明',
   noRecipesFound: '関連レシピが見つかりません。',
-  
+
   // Planner Details
   target: 'ターゲット',
   treeStructure: 'ツリー構造',

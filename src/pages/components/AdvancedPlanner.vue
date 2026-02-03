@@ -172,7 +172,9 @@
           :disable="pendingDecisions.length > 0"
           @click="openSaveDialog"
         />
-        <q-chip dense color="primary" text-color="white"> {{ targets.length }} {{ t('targetCount') }} </q-chip>
+        <q-chip dense color="primary" text-color="white">
+          {{ targets.length }} {{ t('targetCount') }}
+        </q-chip>
       </div>
 
       <!-- 目标概览 -->
@@ -215,7 +217,9 @@
         <q-tab-panel name="summary" class="q-pa-none">
           <div class="column q-gutter-md">
             <q-card flat bordered class="q-pa-md">
-              <div class="text-subtitle2 q-mb-md">{{ t('rawMaterialRequirements', { count: rawItemTotals.size }) }}</div>
+              <div class="text-subtitle2 q-mb-md">
+                {{ t('rawMaterialRequirements', { count: rawItemTotals.size }) }}
+              </div>
               <q-list dense bordered separator class="rounded-borders">
                 <q-item v-for="[itemId, amount] in rawItemEntries" :key="itemId">
                   <q-item-section avatar>
@@ -250,7 +254,9 @@
                     <q-item-label>{{ fluidId }}</q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption>{{ amount.toFixed(2) }} {{ t('perMinute') }}</q-item-label>
+                    <q-item-label caption
+                      >{{ amount.toFixed(2) }} {{ t('perMinute') }}</q-item-label
+                    >
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -300,7 +306,9 @@
                     </q-item-label>
                   </q-item-section>
                   <q-item-section side>
-                    <q-item-label caption> {{ t('seeds') }} {{ formatAmount(seed.seedAmount) }} </q-item-label>
+                    <q-item-label caption>
+                      {{ t('seeds') }} {{ formatAmount(seed.seedAmount) }}
+                    </q-item-label>
                     <q-item-label caption v-if="seed.cycleFactor">
                       {{ t('growthFactor') }} {{ formatAmount(seed.cycleFactor) }}
                     </q-item-label>

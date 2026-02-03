@@ -110,13 +110,13 @@ export default {
   inputItems: '输入物品',
   outputItems: '输出物品',
   machineName: '机器名称',
-  
+
   // Planner
   plannerTabTree: '树结构 (T)',
   plannerTabGraph: '节点图 (G)',
   plannerTabLine: '生产线 (L)',
   plannerTabCalc: '计算器 (C)',
-  
+
   // Advanced Planner Tabs
   startPlanning: '开始规划',
   synthesisTree: '合成树',
@@ -124,15 +124,15 @@ export default {
   productionLine: '生产线',
   calculator: '计算器',
   displayUnit: '显示单位',
-  
+
   // Advanced Planner Graph Options
   showFluids: '显示流体',
   mergeRawMaterials: '合并原材料',
-  
+
   // Advanced Planner Line Options
   hideIntermediate: '隐藏中间产物',
   showCycleSeeds: '显示循环种子',
-  
+
   // Advanced Planner Details
   rawMaterialFluidRequirements: '原材料流体需求 ({count} 种)',
   catalystRequirements: '催化剂需求 ({count} 种)',
@@ -140,7 +140,7 @@ export default {
   need: '需要',
   seeds: '种子',
   growthFactor: '增长倍率',
-  
+
   // Dialog
   lineName: '线路名称',
   save: '保存',
@@ -148,12 +148,12 @@ export default {
   perMinute: '/ 分钟',
   lineSelection: '线路选择',
   chooseSynthesisMethod2: '：选择合成方式',
-  
+
   // Recipe Content
   noTags: '无标签',
   description: '描述',
   noRecipesFound: '没有找到相关配方。',
-  
+
   // Planner Details
   target: '目标',
   treeStructure: '树结构',

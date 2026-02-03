@@ -116,7 +116,7 @@ export default {
   plannerTabGraph: 'Graph (G)',
   plannerTabLine: 'Line (L)',
   plannerTabCalc: 'Calc (C)',
-  
+
   // Advanced Planner Tabs
   startPlanning: 'Start Planning',
   synthesisTree: 'Synthesis Tree',
@@ -124,15 +124,15 @@ export default {
   productionLine: 'Production Line',
   calculator: 'Calculator',
   displayUnit: 'Display Unit',
-  
+
   // Advanced Planner Graph Options
   showFluids: 'Show Fluids',
   mergeRawMaterials: 'Merge Raw Materials',
-  
+
   // Advanced Planner Line Options
   hideIntermediate: 'Hide Intermediate',
   showCycleSeeds: 'Show Cycle Seeds',
-  
+
   // Advanced Planner Details
   rawMaterialFluidRequirements: 'Raw Material Fluid Requirements ({count} types)',
   catalystRequirements: 'Catalyst Requirements ({count} types)',
@@ -140,7 +140,7 @@ export default {
   need: 'Need',
   seeds: 'Seeds',
   growthFactor: 'Growth Factor',
-  
+
   // Dialog
   lineName: 'Line Name',
   save: 'Save',
@@ -148,12 +148,12 @@ export default {
   perMinute: '/ minute',
   lineSelection: 'Line Selection',
   chooseSynthesisMethod2: ': Choose synthesis method',
-  
+
   // Recipe Content
   noTags: 'No tags',
   description: 'Description',
   noRecipesFound: 'No recipes found.',
-  
+
   // Planner Details
   target: 'Target',
   treeStructure: 'Tree Structure',
