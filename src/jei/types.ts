@@ -94,6 +94,34 @@ export interface Recipe {
   inlineItems?: ItemDef[];
 }
 
+export interface InlineRecipe {
+  id: string;
+  type: string;
+  slotContents: Record<string, SlotContent>;
+  params?: Record<string, unknown>;
+  inlineItems?: ItemDef[];
+}
+
+export interface ItemDef {
+  key: ItemKey;
+  name: string;
+  icon?: string;
+  iconSprite?: {
+    url: string;
+    position: string;
+    size?: number;
+    color?: string;
+  };
+  tags?: string[];
+  source?: string;
+  description?: string;
+  belt?: {
+    speed: number;
+  };
+  recipes?: InlineRecipe[];
+  wiki?: Record<string, unknown>;
+}
+
 export interface TagValueObject {
   id: string;
   required?: boolean;
@@ -117,6 +145,7 @@ export interface PackManifest {
   version: string;
   files: {
     items?: string;
+    itemsIndex?: string;
     tags?: string;
     recipeTypes: string;
     recipes: string;
@@ -135,4 +164,5 @@ export interface PackData {
   tags?: PackTags;
   recipeTypes: RecipeTypeDef[];
   recipes: Recipe[];
+  wiki?: Record<string, Record<string, unknown>>;
 }

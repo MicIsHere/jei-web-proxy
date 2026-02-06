@@ -163,7 +163,32 @@ async function exportZip() {
   folder.file('manifest.json', JSON.stringify(pack.manifest, null, 2));
 
   const files = pack.manifest.files;
-  if (files.items) folder.file(files.items, JSON.stringify(pack.items, null, 2));
+  // 处理物品数据 - 支持数组模式和目录模式
+  if (files.items) {
+    if (files.items.endsWith('/')) {
+      // 目录模式：为每个物品创建单独的文件
+      const itemsDir = folder.folder(files.items);
+      if (!itemsDir) return;
+
+      // 创建物品索引文件
+      const itemFiles: string[] = [];
+      for (const item of pack.items) {
+        const itemId = item.key.id;
+        const fileName = `${itemId.replace(/[/\\:*?"<>|]/g, '_')}.json`;
+        itemsDir.file(fileName, JSON.stringify(item, null, 2));
+        itemFiles.push(`${files.items}${fileName}`);
+      }
+
+      // 创建 itemsIndex.json
+      if (files.itemsIndex) {
+        folder.file(files.itemsIndex, JSON.stringify(itemFiles, null, 2));
+      }
+    } else {
+      // 数组模式：所有物品在一个文件中
+      folder.file(files.items, JSON.stringify(pack.items, null, 2));
+    }
+  }
+
   if (files.tags) folder.file(files.tags, JSON.stringify(pack.tags ?? {}, null, 2));
   if (files.recipeTypes) folder.file(files.recipeTypes, JSON.stringify(pack.recipeTypes, null, 2));
   if (files.recipes) folder.file(files.recipes, JSON.stringify(pack.recipes, null, 2));

@@ -12,6 +12,7 @@
     "format": "prettier --write \"**/*.{js,ts,vue,scss,html,md,json}\" --ignore-path .gitignore",
     "test": "echo \"No test specified\" && exit 0",
     "sync:temp": "node scripts/sync-temp-files.mjs",
+    "convert:wiki": "node scripts/convert-wiki-local.mjs",
     "predev": "pnpm run gen:about && pnpm run sync:temp",
     "dev": "quasar dev",
     "prebuild": "pnpm run gen:about",

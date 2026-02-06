@@ -1,0 +1,112 @@
+{
+    "key": {
+        "id": "demo.base.magic_pickaxe",
+        "nbt": {
+            "enchants": [
+                {
+                    "id": "efficiency",
+                    "lvl": 3
+                }
+            ]
+        }
+    },
+    "name": "Magic Pickaxe (Efficiency III)",
+    "iconSprite": {
+        "url": "/packs/single-item-demo/icons.webp",
+        "position": "0px 0px",
+        "size": 64,
+        "color": "#ff6b6b"
+    },
+    "tags": [
+        "tool",
+        "enchanted",
+        "mining"
+    ],
+    "description": "一把附有效率附魔的神奇镐子，可以快速挖掘矿石。",
+    "recipes": [
+        {
+            "id": "demo.magic_pickaxe_crafting",
+            "type": "demo.crafting_table",
+            "slotContents": {
+                "in1": {
+                    "kind": "item",
+                    "id": "demo.base.diamond_pickaxe",
+                    "amount": 1
+                },
+                "in2": {
+                    "kind": "item",
+                    "id": "demo.base.enchantment_book",
+                    "amount": 1
+                },
+                "out1": {
+                    "kind": "item",
+                    "id": "demo.base.magic_pickaxe",
+                    "amount": 1
+                }
+            },
+            "params": {
+                "time": 5
+            }
+        },
+        {
+            "id": "demo.magic_pickaxe_upgrade",
+            "type": "demo.enchanting_table",
+            "slotContents": {
+                "in1": {
+                    "kind": "item",
+                    "id": "demo.base.iron_pickaxe",
+                    "amount": 1
+                },
+                "in2": {
+                    "kind": "item",
+                    "id": "demo.base.lapis_lazuli",
+                    "amount": 3
+                },
+                "out1": {
+                    "kind": "item",
+                    "id": "demo.base.magic_pickaxe",
+                    "amount": 1
+                }
+            },
+            "params": {
+                "xp_cost": 30
+            }
+        }
+    ],
+    "wiki": {
+        "title": "神奇镐子",
+        "content": [
+            {
+                "type": "paragraph",
+                "text": "神奇镐子是一把附有效附魔的高级挖掘工具，能够显著提高挖掘速度。"
+            },
+            {
+                "type": "heading",
+                "level": 2,
+                "text": "属性"
+            },
+            {
+                "type": "list",
+                "items": [
+                    "挖掘速度：+150%",
+                    "耐久度：500",
+                    "附魔效果：效率 III"
+                ]
+            },
+            {
+                "type": "heading",
+                "level": 2,
+                "text": "用途"
+            },
+            {
+                "type": "paragraph",
+                "text": "主要用于快速开采矿石和岩石。适合用于大规模采矿作业。"
+            }
+        ],
+        "stats": {
+            "durability": 500,
+            "mining_speed": "150%",
+            "enchantability": 15
+        }
+    }
+}

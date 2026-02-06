@@ -280,6 +280,7 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
   const obj = assertRecord(value, jsonPath);
   const files = assertRecord(obj.files, `${jsonPath}.files`);
   const itemsPath = assertOptionalString(files.items, `${jsonPath}.files.items`);
+  const itemsIndexPath = assertOptionalString(files.itemsIndex, `${jsonPath}.files.itemsIndex`);
   const tagsPath = assertOptionalString(files.tags, `${jsonPath}.files.tags`);
   const out: PackManifest = {
     packId: assertString(obj.packId, `${jsonPath}.packId`),
@@ -292,6 +293,7 @@ export function assertPackManifest(value: unknown, jsonPath: string): PackManife
     },
   };
   if (itemsPath !== undefined) out.files.items = itemsPath;
+  if (itemsIndexPath !== undefined) out.files.itemsIndex = itemsIndexPath;
   if (tagsPath !== undefined) out.files.tags = tagsPath;
 
   if (isRecord(obj.startupDialog)) {

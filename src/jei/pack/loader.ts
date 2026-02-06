@@ -34,6 +34,34 @@ function mergeInlineItems(items: ItemDef[], recipes: Recipe[]): ItemDef[] {
   return Array.from(byHash.values());
 }
 
+function extractInlineRecipes(items: ItemDef[]): Recipe[] {
+  const recipes: Recipe[] = [];
+  items.forEach((item) => {
+    if (item.recipes) {
+      item.recipes.forEach((r) => {
+        recipes.push({
+          id: r.id,
+          type: r.type,
+          slotContents: r.slotContents,
+          params: r.params ?? {},
+          inlineItems: r.inlineItems ?? [],
+        });
+      });
+    }
+  });
+  return recipes;
+}
+
+function extractWikiData(items: ItemDef[]): Record<string, Record<string, unknown>> {
+  const wikiMap: Record<string, Record<string, unknown>> = {};
+  items.forEach((item) => {
+    if (item.wiki && item.key.id) {
+      wikiMap[item.key.id] = item.wiki;
+    }
+  });
+  return wikiMap;
+}
+
 async function loadManifest(packId: string): Promise<PackManifest> {
   const base = packBaseUrl(packId);
   const raw = await fetchJson(`${base}/manifest.json`);
@@ -46,6 +74,37 @@ async function loadManifest(packId: string): Promise<PackManifest> {
 
 async function loadItems(base: string, manifest: PackManifest): Promise<ItemDef[]> {
   if (!manifest.files.items) return [];
+
+  // 检查是否为目录模式（以 / 结尾）
+  if (manifest.files.items.endsWith('/')) {
+    // 目录模式：需要从 itemsIndex 加载文件列表
+    if (!manifest.files.itemsIndex) {
+      throw new Error('items directory specified but itemsIndex not defined in manifest');
+    }
+    const indexRaw = await fetchJson(`${base}/${manifest.files.itemsIndex}`);
+    if (!Array.isArray(indexRaw)) {
+      throw new Error('$.itemsIndex: expected array');
+    }
+
+    const items: ItemDef[] = [];
+    for (let i = 0; i < indexRaw.length; i++) {
+      const itemFile = indexRaw[i];
+      if (typeof itemFile !== 'string') {
+        throw new Error(`$.itemsIndex[${i}]: expected string`);
+      }
+      try {
+        const raw = await fetchJson(`${base}/${itemFile}`);
+        const item = assertItemDef(raw, `$.itemsIndex[${i}]`);
+        items.push(item);
+      } catch (e) {
+        console.error(`Failed to load item file ${itemFile}:`, e);
+        throw e;
+      }
+    }
+    return items;
+  }
+
+  // 数组模式：原有的单一 items.json 文件
   const raw = await fetchJson(`${base}/${manifest.files.items}`);
   if (!Array.isArray(raw)) {
     throw new Error('$.items: expected array');
@@ -104,9 +163,32 @@ async function zipToPackData(zipBlob: Blob): Promise<{ pack: PackData; assets: {
     if (!file) throw new Error(`Missing ${rel}`);
     return assertPackTags(JSON.parse(await file.async('string')), '$.tags');
   };
+  const readItemsFromDir = async (dir: string, indexRel: string) => {
+    const indexFile = zip.file(`${baseDir}${indexRel}`);
+    if (!indexFile) throw new Error(`Missing ${indexRel}`);
+    const indexRaw = JSON.parse(await indexFile.async('string')) as unknown;
+    if (!Array.isArray(indexRaw)) throw new Error(`$.itemsIndex: expected array`);
 
-  const [items, tags, recipeTypes, recipes] = await Promise.all([
-    readJsonArray(manifest.files.items, 'items', (v, i) => assertItemDef(v, `$.items[${i}]`)),
+    const items: ItemDef[] = [];
+    for (let i = 0; i < indexRaw.length; i++) {
+      const itemFile = indexRaw[i];
+      if (typeof itemFile !== 'string') {
+        throw new Error(`$.itemsIndex[${i}]: expected string`);
+      }
+      const file = zip.file(`${baseDir}${itemFile}`);
+      if (!file) throw new Error(`Missing ${itemFile}`);
+      const raw = JSON.parse(await file.async('string')) as unknown;
+      const item = assertItemDef(raw, `${itemFile}`);
+      items.push(item);
+    }
+    return items;
+  };
+
+  const items = manifest.files.items?.endsWith('/')
+    ? await readItemsFromDir(manifest.files.items, manifest.files.itemsIndex!)
+    : await readJsonArray(manifest.files.items, 'items', (v, i) => assertItemDef(v, `$.items[${i}]`));
+
+  const [tags, recipeTypes, recipes] = await Promise.all([
     readTags(manifest.files.tags),
     readJsonArray(manifest.files.recipeTypes, 'recipeTypes', (v, i) =>
       assertRecipeTypeDef(v, `$.recipeTypes[${i}]`),
@@ -123,16 +205,26 @@ async function zipToPackData(zipBlob: Blob): Promise<{ pack: PackData; assets: {
   if (tags !== undefined) pack.tags = tags;
 
   const assets: { path: string; blob: Blob }[] = [];
+  const isItemFile = (rel: string) => {
+    // 如果是目录模式，检查是否是物品目录下的文件
+    if (manifest.files.items?.endsWith('/')) {
+      return rel.startsWith(manifest.files.items);
+    }
+    // 如果是数组模式，检查是否是items.json
+    return rel === manifest.files.items;
+  };
+
   zip.forEach((relativePath, file) => {
     if (file.dir) return;
     if (!relativePath.startsWith(baseDir)) return;
     const rel = relativePath.slice(baseDir.length);
     if (!rel) return;
     if (rel === 'manifest.json') return;
-    if (rel === manifest.files.items) return;
+    if (isItemFile(rel)) return;
     if (rel === manifest.files.tags) return;
     if (rel === manifest.files.recipeTypes) return;
     if (rel === manifest.files.recipes) return;
+    if (rel === manifest.files.itemsIndex) return;
     assets.push({ path: rel, blob: new Blob([]) });
   });
 
@@ -211,12 +303,20 @@ export async function loadPack(packId: string): Promise<PackData> {
     loadRecipes(base, manifest),
   ]);
 
+  // 从物品文件中提取内联的 recipes 和 wiki 数据
+  const inlineRecipes = extractInlineRecipes(items);
+  const wikiData = extractWikiData(items);
+
+  // 合并所有 recipes：全局 recipes + 物品内联 recipes
+  const allRecipes = [...recipes, ...inlineRecipes];
+
   const out: PackData = {
     manifest,
-    items: mergeInlineItems(items, recipes),
+    items: mergeInlineItems(items, allRecipes),
     recipeTypes,
-    recipes,
+    recipes: allRecipes,
   };
   if (tags !== undefined) out.tags = tags;
+  if (Object.keys(wikiData).length > 0) out.wiki = wikiData;
   return out;
 }

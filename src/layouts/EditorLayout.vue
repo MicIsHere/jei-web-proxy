@@ -55,6 +55,17 @@
         <q-btn
           flat
           dense
+          no-caps
+          :class="$q.dark.isActive ? 'text-white' : 'text-grey-8'"
+          @click="showQQGroupDialog"
+        >
+          <q-icon name="group" class="q-mr-xs" />
+          <span>官方QQ群：1080814651</span>
+        </q-btn>
+
+        <q-btn
+          flat
+          dense
           round
           :class="$q.dark.isActive ? 'text-white' : 'text-grey-8'"
           aria-label="Theme"
@@ -249,8 +260,30 @@
             <q-item-label>明日方舟:终末地非官方Wiki</q-item-label>
           </q-item-section>
         </q-item>
+
+        <q-separator class="q-my-sm" />
+
+        <q-item-label header>官方QQ群</q-item-label>
+
+        <q-item
+          clickable
+          tag="a"
+          target="_blank"
+          href="https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=zqJY9RCCW3Hs2dH_745AoKSGkd6ME0qM&authKey=f5TTWw4D3XWrz%2B3y%2FB%2BDntQY4gRUOgNz9fsIQ5umYUzXZdAyg7rqIm2z%2B2tU39RB&noverify=0&group_code=1080814651"
+          v-ripple
+        >
+          <q-item-section avatar>
+            <q-icon name="group" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>官方QQ群:1080814651</q-item-label>
+            <q-item-label caption>JEI Web官方群</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
+
+    <QQGroupDialog v-model:visible="qqGroupDialogVisible" />
 
     <q-page-container>
       <router-view />
@@ -347,6 +380,7 @@ import { useSettingsStore, type DarkMode } from 'src/stores/settings';
 import { Dark, useQuasar } from 'quasar';
 import { useEditorStore } from 'src/stores/editor';
 import { usePackManagerStore } from 'src/stores/packManager';
+import QQGroupDialog from 'components/QQGroupDialog.vue';
 
 const settingsStore = useSettingsStore();
 const editorStore = useEditorStore();
@@ -354,9 +388,14 @@ const packStore = usePackManagerStore();
 const $q = useQuasar();
 const leftDrawerOpen = ref(false);
 const showChanges = ref(false);
+const qqGroupDialogVisible = ref(false);
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
+}
+
+function showQQGroupDialog() {
+  qqGroupDialogVisible.value = true;
 }
 
 const hasChanges = computed(() => editorStore.changeBlocks.length > 0);

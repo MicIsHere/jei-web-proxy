@@ -109,6 +109,17 @@
         </q-btn>
 
         <div :class="$q.dark.isActive ? 'text-white' : 'text-grey-8'">v{{ appVersion }}</div>
+
+        <q-btn
+          flat
+          dense
+          no-caps
+          :class="$q.dark.isActive ? 'text-white' : 'text-grey-8'"
+          @click="showQQGroupDialog"
+        >
+          <q-icon name="group" class="q-mr-xs" />
+          <span>官方QQ群：1080814651</span>
+        </q-btn>
       </q-toolbar>
     </q-header>
 
@@ -131,8 +142,34 @@
             <q-item-label caption>GameKee</q-item-label>
           </q-item-section>
         </q-item>
+
+        <q-separator />
+
+        <q-item-label header> 官方QQ群 </q-item-label>
+
+        <q-item
+          clickable
+          tag="a"
+          target="_blank"
+          href="https://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=zqJY9RCCW3Hs2dH_745AoKSGkd6ME0qM&authKey=f5TTWw4D3XWrz%2B3y%2FB%2BDntQY4gRUOgNz9fsIQ5umYUzXZdAyg7rqIm2z%2B2tU39RB&noverify=0&group_code=1080814651"
+        >
+          <q-item-section avatar>
+            <q-icon name="group" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>官方QQ群:1080814651</q-item-label>
+            <q-item-label caption>JEI Web官方群</q-item-label>
+          </q-item-section>
+        </q-item>
       </q-list>
     </q-drawer>
+
+    <QQGroupDialog
+      v-model:visible="qqGroupDialogVisible"
+      title="欢迎来到 JEI Web"
+      :show-dont-show-again="true"
+      @close="closeQQGroupDialog"
+    />
 
     <q-page-container :class="settingsStore.debugLayout ? 'debug-scroll' : 'no-scroll'">
       <router-view />
@@ -145,6 +182,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Dark, useQuasar } from 'quasar';
 import { useI18n } from 'vue-i18n';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
+import QQGroupDialog from 'components/QQGroupDialog.vue';
 import { useSettingsStore, type DarkMode, type Language } from 'src/stores/settings';
 
 const settingsStore = useSettingsStore();
@@ -253,12 +291,29 @@ const linksList: EssentialLinkProps[] = [
 ];
 
 const leftDrawerOpen = ref(false);
+const qqGroupDialogVisible = ref(false);
+const QQ_GROUP_DIALOG_ID = 'qq-group-intro';
 
 function toggleLeftDrawer() {
   leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
+function showQQGroupDialog() {
+  qqGroupDialogVisible.value = true;
+}
+
+function closeQQGroupDialog(dontShowAgain: boolean) {
+  qqGroupDialogVisible.value = false;
+  if (dontShowAgain) {
+    settingsStore.addAcceptedStartupDialog(QQ_GROUP_DIALOG_ID);
+  }
+}
+
 onMounted(() => {
+  // 第一次打开网页时显示QQ群弹窗
+  if (!settingsStore.acceptedStartupDialogs.includes(QQ_GROUP_DIALOG_ID)) {
+    qqGroupDialogVisible.value = true;
+  }
   document.addEventListener('fullscreenchange', handleFullscreenChange);
   handleFullscreenChange();
 });

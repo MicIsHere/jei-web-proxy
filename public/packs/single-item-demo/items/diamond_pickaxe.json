@@ -1,0 +1,18 @@
+{
+    "key": {
+        "id": "demo.base.diamond_pickaxe"
+    },
+    "name": "Diamond Pickaxe",
+    "iconSprite": {
+        "url": "/packs/single-item-demo/icons.webp",
+        "position": "64px 0px",
+        "size": 64,
+        "color": "#6b9fff"
+    },
+    "tags": [
+        "tool",
+        "diamond",
+        "mining"
+    ],
+    "description": "一把用钻石制成的镐子，具有极高的硬度和耐久度。"
+}

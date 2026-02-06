@@ -1,0 +1,28 @@
+{
+    "item": {
+        "demo:ore": {
+            "values": [
+                "demo.base.iron_ore"
+            ]
+        },
+        "demo:ingot": {
+            "values": [
+                "demo.base.iron_ingot"
+            ]
+        },
+        "demo:dust": {
+            "values": [
+                "demo.base.iron_dust"
+            ]
+        },
+        "demo:tool": {
+            "values": [
+                "demo.base.iron_pickaxe",
+                {
+                    "id": "demo.base.magic_pickaxe",
+                    "required": true
+                }
+            ]
+        }
+    }
+}

@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import JSZip from 'jszip';
-import type { PackData } from 'src/jei/types';
+import type { ItemDef, PackData, Recipe } from 'src/jei/types';
+import { stableJsonStringify } from 'src/jei/utils/stableJson';
 import { idbDeletePackZip, idbGetPackZip, idbSetPackZip } from 'src/jei/utils/idb';
 import { useEditorStore } from 'src/stores/editor';
 
@@ -24,6 +25,50 @@ function now() {
 
 function makeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function itemKeyHash(def: { key: { id: string; meta?: number | string; nbt?: unknown } }): string {
+  return `${def.key.id}::${def.key.meta ?? ''}::${stableJsonStringify(def.key.nbt ?? null)}`;
+}
+
+function mergeInlineItems(items: ItemDef[], recipes: Recipe[]): ItemDef[] {
+  const byHash = new Map<string, ItemDef>();
+  items.forEach((it) => byHash.set(itemKeyHash(it), it));
+  recipes.forEach((r) => {
+    r.inlineItems?.forEach((it) => {
+      const key = itemKeyHash(it);
+      if (!byHash.has(key)) byHash.set(key, it);
+    });
+  });
+  return Array.from(byHash.values());
+}
+
+function extractInlineRecipes(items: ItemDef[]): Recipe[] {
+  const recipes: Recipe[] = [];
+  items.forEach((item) => {
+    if (item.recipes) {
+      item.recipes.forEach((r) => {
+        recipes.push({
+          id: r.id,
+          type: r.type,
+          slotContents: r.slotContents,
+          params: r.params ?? {},
+          inlineItems: r.inlineItems ?? [],
+        });
+      });
+    }
+  });
+  return recipes;
+}
+
+function extractWikiData(items: ItemDef[]): Record<string, Record<string, unknown>> {
+  const wikiMap: Record<string, Record<string, unknown>> = {};
+  items.forEach((item) => {
+    if (item.wiki && item.key.id) {
+      wikiMap[item.key.id] = item.wiki;
+    }
+  });
+  return wikiMap;
 }
 
 function safeParseIndex(raw: string | null): StoredPackIndex {
@@ -53,30 +98,77 @@ async function zipToPackData(zipBlob: Blob): Promise<{ pack: PackData; assets: {
     return JSON.parse(await file.async('string')) as unknown;
   };
 
-  const items = (await readJson(manifest.files.items)) as PackData['items'];
+  // 加载物品数据 - 支持数组模式和目录模式
+  let items: PackData['items'] = [];
+  if (manifest.files.items) {
+    if (manifest.files.items.endsWith('/')) {
+      // 目录模式
+      if (!manifest.files.itemsIndex) {
+        throw new Error('items directory specified but itemsIndex not defined in manifest');
+      }
+      const itemsIndex = await readJson(manifest.files.itemsIndex);
+      if (!Array.isArray(itemsIndex)) {
+        throw new Error('itemsIndex: expected array');
+      }
+      items = [];
+      for (let i = 0; i < itemsIndex.length; i++) {
+        const itemFile = itemsIndex[i];
+        if (typeof itemFile !== 'string') {
+          throw new Error(`itemsIndex[${i}]: expected string`);
+        }
+        const raw = await readJson(itemFile);
+        if (raw) {
+          items.push(raw as ItemDef);
+        }
+      }
+    } else {
+      // 数组模式
+      const raw = await readJson(manifest.files.items);
+      items = (raw as PackData['items']) || [];
+    }
+  }
+
   const tags = (await readJson(manifest.files.tags)) as PackData['tags'];
   const recipeTypes = (await readJson(manifest.files.recipeTypes)) as PackData['recipeTypes'];
   const recipes = (await readJson(manifest.files.recipes)) as PackData['recipes'];
 
+  // 从物品文件中提取内联的 recipes 和 wiki 数据
+  const inlineRecipes = extractInlineRecipes(items);
+  const wikiData = extractWikiData(items);
+
+  // 合并所有 recipes：全局 recipes + 物品内联 recipes
+  const allRecipes = [...(recipes || []), ...inlineRecipes];
+
   const pack: PackData = {
     manifest,
-    items: items || [],
+    items: mergeInlineItems(items || [], allRecipes),
     recipeTypes: recipeTypes || [],
-    recipes: recipes || [],
+    recipes: allRecipes,
   };
   if (tags) pack.tags = tags;
+  if (Object.keys(wikiData).length > 0) pack.wiki = wikiData;
 
   const assets: { path: string; blob: Blob }[] = [];
+  const isItemFile = (rel: string) => {
+    // 如果是目录模式，检查是否是物品目录下的文件
+    if (manifest.files.items?.endsWith('/')) {
+      return rel.startsWith(manifest.files.items);
+    }
+    // 如果是数组模式，检查是否是items.json
+    return rel === manifest.files.items;
+  };
+
   zip.forEach((relativePath, file) => {
     if (file.dir) return;
     if (!relativePath.startsWith(baseDir)) return;
     const rel = relativePath.slice(baseDir.length);
     if (!rel) return;
     if (rel === 'manifest.json') return;
-    if (rel === manifest.files.items) return;
     if (rel === manifest.files.tags) return;
     if (rel === manifest.files.recipeTypes) return;
     if (rel === manifest.files.recipes) return;
+    if (rel === manifest.files.itemsIndex) return;
+    if (isItemFile(rel)) return;
     assets.push({
       path: rel,
       blob: new Blob([]),

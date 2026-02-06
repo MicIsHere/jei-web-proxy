@@ -1,0 +1,10 @@
+{
+    "key": {
+        "id": "demo.base.iron_ore"
+    },
+    "name": "Iron Ore",
+    "tags": [
+        "ore",
+        "worldgen"
+    ]
+}

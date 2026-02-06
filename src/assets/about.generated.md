@@ -1,16 +1,27 @@
 # About
 
 ## Build
-- Version: 14a59b7-dirty
-- Commit: 14a59b7 (14a59b70cb97ad6cc07bb29c67ef6e39e2a5ee07)
-- Commit count: 47
-- Subject: feat: 添加带速带的物品定义，更新相关组件以支持新功能
+- Version: 515b8c6-dirty
+- Commit: 515b8c6 (515b8c61d2b1204eec56e7580b70711b957716f7)
+- Commit count: 48
+- Subject: feat: add Wiki Renderer page and related functionality
 - Author: AndreaFrederica
-- Date: 2026-02-03T12:04:31+08:00
-- Generated at: 2026-02-03T21:22:53.462Z
+- Date: 2026-02-04T05:40:10+08:00
+- Generated at: 2026-02-06T23:25:57.132Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r48 (2026-02-04T05:40:10+08:00)
+- 515b8c6
+  feat: add Wiki Renderer page and related functionality
+  
+  - Implemented WikiRendererPage.vue for rendering wiki documents with file upload support.
+  - Added functionality to load wiki files and catalog files from specified directories.
+  - Integrated settings for image proxy usage and catalog file name persistence in settings store.
+  - Updated routes to include the new Wiki Renderer page.
+  - Enhanced existing pages (AboutPage, LicensePage, ReadmePage, ThirdPartyLicensesPage) to support dark mode styling.
+  - Introduced new types for wiki data structures in types/wiki.ts.
 
 ### r47 (2026-02-03T12:04:31+08:00)
 - 14a59b7
