@@ -1,16 +1,24 @@
 # About
 
 ## Build
-- Version: c2956e6-dirty
-- Commit: c2956e6 (c2956e668607e1521ee015843c9595f5bc2bb232)
-- Commit count: 51
-- Subject: feat: 添加存储编辑器页面及相关路由
+- Version: 5506c06-dirty
+- Commit: 5506c06 (5506c069ccf1fb17627b1e2e7c6237cb138b115d)
+- Commit count: 53
+- Subject: fix: 修正 README 中图标路径
 - Author: AndreaFrederica
-- Date: 2026-02-07T09:49:54+08:00
-- Generated at: 2026-02-07T01:57:13.892Z
+- Date: 2026-02-07T10:04:45+08:00
+- Generated at: 2026-02-07T02:10:35.483Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r53 (2026-02-07T10:04:45+08:00)
+- 5506c06
+  fix: 修正 README 中图标路径
+
+### r52 (2026-02-07T09:58:53+08:00)
+- 8251d10
+  feat: 更新 README 和生成的文档，调整样式以改善显示效果
 
 ### r51 (2026-02-07T09:49:54+08:00)
 - c2956e6

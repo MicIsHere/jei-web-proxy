@@ -37,6 +37,14 @@ function readText(filePath, fallback = '') {
   }
 }
 
+function normalizeReadmeForApp(readme) {
+  if (!readme) return readme;
+  return readme
+    .replace(/(<img[^>]+src=["'])public\//g, '$1/')
+    .replace(/(!\[[^\]]*]\()\.\/public\//g, '$1/')
+    .replace(/(!\[[^\]]*]\()public\//g, '$1/');
+}
+
 function splitLines(text) {
   return (text || '')
     .split(/\r?\n/g)
@@ -173,7 +181,8 @@ function main() {
   writeFile(outAboutFile, lines.join('\n'));
 
   const readme = readText(path.resolve(repoRoot, 'README.md'), '# README\n\nMissing.\n');
-  writeFile(outReadmeFile, readme);
+  const readmeForApp = normalizeReadmeForApp(readme);
+  writeFile(outReadmeFile, readmeForApp);
 
   const license = readText(path.resolve(repoRoot, 'LICENSE'), 'Missing.\n');
   const licenseMd = ['# License', '', '```text', license.replace(/\n$/, ''), '```', ''].join('\n');
