@@ -196,7 +196,7 @@
       @skip="handleTutorialSkip"
     />
 
-    <q-page-container>
+    <q-page-container :class="pageContainerClass">
       <router-view />
     </q-page-container>
   </q-layout>
@@ -206,6 +206,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Dark, useQuasar } from 'quasar';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import EssentialLink, { type EssentialLinkProps } from 'components/EssentialLink.vue';
 import QQGroupDialog from 'components/QQGroupDialog.vue';
 import InteractiveTour, { type TutorialProgress } from 'components/InteractiveTour.vue';
@@ -218,6 +219,7 @@ const dialogManager = useDialogManager();
 const tutorialManager = getTutorialManager();
 const $q = useQuasar();
 const { locale } = useI18n();
+const route = useRoute();
 // 开发环境使用 package.json 版本，生产环境使用 git commit hash
 const appVersion = import.meta.env.DEV ? '0.0.1-dev' : (__APP_VERSION__ ?? 'unknown');
 
@@ -263,6 +265,16 @@ const themeIcon = computed(() => {
     return Dark.isActive ? 'dark_mode' : 'light_mode';
   }
   return settingsStore.darkMode === 'dark' ? 'dark_mode' : 'light_mode';
+});
+
+const isHomePageRoute = computed(() => {
+  const path = route.path;
+  return path === '/' || path === '/item' || path.startsWith('/item/');
+});
+
+const pageContainerClass = computed(() => {
+  if (!isHomePageRoute.value) return null;
+  return settingsStore.debugLayout ? 'debug-scroll' : 'no-scroll';
 });
 
 function setTheme(mode: DarkMode) {
@@ -497,6 +509,27 @@ onUnmounted(() => {
 </script>
 
 <style>
+.no-scroll {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.debug-scroll {
+  overflow: auto;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.no-scroll > .q-page,
+.debug-scroll > .q-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* 顶栏样式：颜色与页面背景一致，去除光晕效果 */
 .q-header {
   background-color: var(--q-page-background);
