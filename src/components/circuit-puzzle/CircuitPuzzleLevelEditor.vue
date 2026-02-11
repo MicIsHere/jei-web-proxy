@@ -3,21 +3,73 @@
     <section class="editor-card">
       <h3>图形关卡编辑器</h3>
       <div class="editor-grid">
-        <label class="editor-field"><span>id</span><input v-model.trim="levelId" type="text" /></label>
-        <label class="editor-field"><span>name</span><input v-model.trim="levelName" type="text" /></label>
-        <label class="editor-field"><span>rows</span><input v-model.number="rows" type="number" min="1" max="24" /></label>
-        <label class="editor-field"><span>cols</span><input v-model.number="cols" type="number" min="1" max="24" /></label>
+        <label class="editor-field"
+          ><span>id</span><input v-model.trim="levelId" type="text"
+        /></label>
+        <label class="editor-field"
+          ><span>name</span><input v-model.trim="levelName" type="text"
+        /></label>
+        <label class="editor-field"
+          ><span>rows</span><input v-model.number="rows" type="number" min="1" max="24"
+        /></label>
+        <label class="editor-field"
+          ><span>cols</span><input v-model.number="cols" type="number" min="1" max="24"
+        /></label>
       </div>
 
       <div class="tool-row">
         <span class="tool-label">工具</span>
-        <button type="button" class="editor-btn" :class="{ 'editor-btn--active': boardTool === 'place' }" @click="boardTool = 'place'">摆放</button>
-        <button type="button" class="editor-btn" :class="{ 'editor-btn--active': boardTool === 'blocked' }" @click="boardTool = 'blocked'">禁用</button>
-        <button type="button" class="editor-btn" :class="{ 'editor-btn--active': boardTool === 'hint' }" @click="boardTool = 'hint'">提示</button>
-        <button type="button" class="editor-btn" :class="{ 'editor-btn--active': boardTool === 'paint' }" @click="boardTool = 'paint'">涂色</button>
-        <button type="button" class="editor-btn" :class="{ 'editor-btn--active': boardTool === 'erase' }" @click="boardTool = 'erase'">擦除</button>
-        <button type="button" class="editor-btn" :disabled="!selectedPieceUid" @click="rotateSelectedPlacePiece">旋转(R)</button>
-        <button type="button" class="editor-btn" @click="generateHintsFromPlacements">从摆放生成提示</button>
+        <button
+          type="button"
+          class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'place' }"
+          @click="boardTool = 'place'"
+        >
+          摆放
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'blocked' }"
+          @click="boardTool = 'blocked'"
+        >
+          禁用
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'hint' }"
+          @click="boardTool = 'hint'"
+        >
+          提示
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'paint' }"
+          @click="boardTool = 'paint'"
+        >
+          涂色
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
+          :class="{ 'editor-btn--active': boardTool === 'erase' }"
+          @click="boardTool = 'erase'"
+        >
+          擦除
+        </button>
+        <button
+          type="button"
+          class="editor-btn"
+          :disabled="!selectedPieceUid"
+          @click="rotateSelectedPlacePiece"
+        >
+          旋转(R)
+        </button>
+        <button type="button" class="editor-btn" @click="generateHintsFromPlacements">
+          从摆放生成提示
+        </button>
         <button type="button" class="editor-btn" @click="clearHints">清空提示</button>
         <button type="button" class="editor-btn" @click="clearPlacements">清空摆放</button>
       </div>
@@ -35,7 +87,12 @@
           />
         </div>
         <div class="palette-custom-row">
-          <input v-model.trim="paletteColorInput" type="text" class="palette-input" placeholder="#9ddb22" />
+          <input
+            v-model.trim="paletteColorInput"
+            type="text"
+            class="palette-input"
+            placeholder="#9ddb22"
+          />
           <button type="button" class="editor-btn" @click="applyPaletteInput">应用色号</button>
           <span class="palette-preview" :style="{ backgroundColor: selectedPaintColor }" />
         </div>
@@ -69,37 +126,158 @@
         @cell-click="onBoardCellClick"
         @cell-hover="onBoardCellHover"
         @board-leave="boardHover = null"
+        @cancel-selection="onBoardCancelSelection"
       />
 
       <div class="summary-row">
         <span>提示格数: {{ finalHintKeys.length }}</span>
         <span>禁用格数: {{ blockedKeys.length }}</span>
         <span>目标总分: {{ formatScore(totalTargetScore) }}</span>
-        <label class="toggle-field"><input v-model="keepUnusedPieces" type="checkbox" /><span>导出保留未用方块</span></label>
+        <label class="toggle-field"
+          ><input v-model="keepUnusedPieces" type="checkbox" /><span>导出保留未用方块</span></label
+        >
       </div>
+    </section>
 
-      <div class="pieces-head">
-        <h4>颜色分值</h4>
-      </div>
-      <div class="color-weight-grid">
-        <label v-for="entry in colorWeightEntries" :key="entry.color" class="editor-field color-weight-item">
-          <span><i class="color-chip" :style="{ backgroundColor: entry.color }" />{{ entry.color }}</span>
-          <input
-            :value="entry.weight"
-            type="number"
-            min="0"
-            step="0.1"
-            @input="setColorWeight(entry.color, Number(($event.target as HTMLInputElement).value))"
+    <section class="editor-card">
+      <h3>方块形状画布</h3>
+      <div class="shape-json-layout">
+        <div class="shape-pane">
+          <div v-if="activeShapePiece" class="shape-title">
+            当前编辑: {{ activeShapePiece.name }} ({{ activeShapePiece.id }})
+          </div>
+          <div v-else class="shape-title">未选择方块</div>
+          <p class="shape-tip">
+            简化画布（{{ pieceCanvasSize }}x{{ pieceCanvasSize }}），点击格子切换方块单元。
+          </p>
+
+          <CircuitPuzzleShapeCanvas
+            :rows="pieceCanvasSize"
+            :cols="pieceCanvasSize"
+            :filled-keys="activeShapeKeys"
+            :fill-color="activeShapeColor"
+            :hover-key="shapeHoverKey"
+            :cell-size="28"
+            @cell-click="onShapeCellClick"
+            @cell-hover="onShapeCellHover"
+            @board-leave="shapeHover = null"
           />
-        </label>
+
+          <div class="editor-actions">
+            <button
+              type="button"
+              class="editor-btn"
+              :disabled="!activeShapePiece"
+              @click="normalizeActiveShape"
+            >
+              归一化到左上
+            </button>
+          </div>
+        </div>
+
+        <div class="shape-right-pane">
+          <details class="json-panel">
+            <summary class="json-panel-summary">关卡 JSON</summary>
+            <div class="json-panel-body">
+              <p class="editor-tip">
+                支持字段：<code>board.hintCells</code>、<code>board.hintColors</code>、<code>board.blocked</code>、<code>pieces[].count</code>、<code>scoring.colorWeights</code>。
+              </p>
+              <label class="editor-field"
+                ><span>JSON Preview</span><textarea :value="jsonPreview" rows="14" readonly />
+              </label>
+              <label class="editor-field"
+                ><span>Import JSON</span><textarea v-model="importJsonText" rows="12" />
+              </label>
+
+              <div class="editor-actions">
+                <button type="button" class="editor-btn" @click="fillImportWithCurrentJson">
+                  填入当前 JSON
+                </button>
+                <button
+                  type="button"
+                  class="editor-btn editor-btn--primary"
+                  @click="applyImportJson"
+                >
+                  从 JSON 覆盖编辑器
+                </button>
+              </div>
+            </div>
+          </details>
+
+          <div class="score-panel">
+            <h3>颜色分值</h3>
+            <div class="color-weight-grid">
+              <label
+                v-for="entry in colorWeightEntries"
+                :key="entry.color"
+                class="editor-field color-weight-item"
+              >
+                <span
+                  ><i class="color-chip" :style="{ backgroundColor: entry.color }" />{{
+                    entry.color
+                  }}</span
+                >
+                <input
+                  :value="entry.weight"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  @input="
+                    setColorWeight(entry.color, Number(($event.target as HTMLInputElement).value))
+                  "
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="editor-actions">
+            <button type="button" class="editor-btn" @click="restoreFromCurrent">
+              从当前关卡重载
+            </button>
+            <button type="button" class="editor-btn" @click="resetAsBlank">清空为新模板</button>
+            <button type="button" class="editor-btn" @click="autoSolveLevel">自动解题</button>
+            <button type="button" class="editor-btn" @click="generateShareLink">
+              生成分享链接
+            </button>
+            <button type="button" class="editor-btn" @click="openAdvancedShare">高级共享</button>
+            <button type="button" class="editor-btn editor-btn--primary" @click="applyToGame">
+              应用到试玩
+            </button>
+          </div>
+          <label v-if="shareUrlText" class="editor-field">
+            <span>最近生成的分享链接</span>
+            <textarea :value="shareUrlText" rows="2" readonly />
+          </label>
+
+          <div v-if="buildErrors.length" class="editor-errors">
+            <div v-for="(err, i) in buildErrors" :key="`err-${i}`">{{ err }}</div>
+          </div>
+        </div>
       </div>
 
-      <div class="pieces-head">
-        <h4>方块列表</h4>
-        <button type="button" class="editor-btn" @click="addPiece">+ 添加方块</button>
+      <div v-if="importErrors.length" class="editor-errors">
+        <div v-for="(err, i) in importErrors" :key="`import-${i}`">{{ err }}</div>
       </div>
-      <div class="piece-list">
-        <article v-for="(piece, idx) in pieces" :key="piece.uid" class="piece-card" :class="{ 'piece-card--selected': selectedPieceUid === piece.uid }">
+    </section>
+
+    <section v-if="piecePanelState.docked" class="editor-card piece-docked-card">
+      <div class="piece-docked-head">
+        <h3>方块列表</h3>
+        <div class="piece-docked-actions">
+          <button type="button" class="editor-btn" @click="addPiece">+ 添加方块</button>
+          <button type="button" class="editor-btn" @click="setPiecePanelDocked(false)">
+            改为悬浮
+          </button>
+        </div>
+      </div>
+
+      <div class="piece-list piece-list--docked">
+        <article
+          v-for="(piece, idx) in pieces"
+          :key="piece.uid"
+          class="piece-card"
+          :class="{ 'piece-card--selected': selectedPieceUid === piece.uid }"
+        >
           <div class="piece-preview-wrap">
             <CircuitPuzzlePieceCard
               :item-id="piece.uid"
@@ -120,92 +298,150 @@
           </div>
 
           <div class="piece-card-head">
-            <label class="editor-field"><span>id</span><input v-model.trim="piece.id" type="text" /></label>
-            <label class="editor-field"><span>name</span><input v-model.trim="piece.name" type="text" /></label>
-            <label class="editor-field"><span>color</span><input v-model.trim="piece.color" type="text" placeholder="#9ddb22" /></label>
-            <label class="editor-field"><span>count</span><input v-model.number="piece.count" type="number" min="0" /></label>
+            <label class="editor-field"
+              ><span>id</span><input v-model.trim="piece.id" type="text"
+            /></label>
+            <label class="editor-field"
+              ><span>name</span><input v-model.trim="piece.name" type="text"
+            /></label>
+            <label class="editor-field"
+              ><span>color</span
+              ><input v-model.trim="piece.color" type="text" placeholder="#9ddb22"
+            /></label>
+            <label class="editor-field"
+              ><span>count</span><input v-model.number="piece.count" type="number" min="0"
+            /></label>
           </div>
 
           <div class="piece-meta-row">
-            <span :class="{ 'text-unavailable': remainingCountByUid.get(piece.uid) === 0 }">剩余 {{ remainingCountByUid.get(piece.uid) ?? 0 }}/{{ Math.max(0, piece.count) }}</span>
+            <span :class="{ 'text-unavailable': remainingCountByUid.get(piece.uid) === 0 }"
+              >剩余 {{ remainingCountByUid.get(piece.uid) ?? 0 }}/{{
+                Math.max(0, piece.count)
+              }}</span
+            >
             <span>已放置 {{ usedCountByUid.get(piece.uid) ?? 0 }}</span>
           </div>
 
           <div class="piece-actions">
-            <button type="button" class="editor-btn" @click="selectPiece(piece.uid)">选中摆放</button>
-            <button type="button" class="editor-btn" @click="selectPieceForShape(piece.uid)">编辑形状</button>
-            <button type="button" class="editor-btn" @click="rotatePieceShape(piece.uid)">旋转形状</button>
-            <button type="button" class="editor-btn" @click="clearPieceCells(piece.uid)">清空形状</button>
-            <button type="button" class="editor-btn editor-btn--danger" @click="removePiece(idx)">删除</button>
+            <button type="button" class="editor-btn" @click="selectPiece(piece.uid)">
+              选中摆放
+            </button>
+            <button type="button" class="editor-btn" @click="selectPieceForShape(piece.uid)">
+              编辑形状
+            </button>
+            <button type="button" class="editor-btn" @click="rotatePieceShape(piece.uid)">
+              旋转形状
+            </button>
+            <button type="button" class="editor-btn" @click="clearPieceCells(piece.uid)">
+              清空形状
+            </button>
+            <button type="button" class="editor-btn editor-btn--danger" @click="removePiece(idx)">
+              删除
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <aside
+      v-else-if="!piecePanelState.minimized"
+      class="piece-float-panel"
+      :style="piecePanelStyle"
+      @pointerdown.stop
+    >
+      <div class="piece-float-head" @pointerdown="onPiecePanelHeadPointerDown">
+        <div class="piece-float-dragger">方块列表</div>
+        <div class="piece-float-head-actions" @pointerdown.stop>
+          <button type="button" class="editor-btn" @click="addPiece">+ 添加方块</button>
+          <button type="button" class="editor-btn" @click="setPiecePanelDocked(true)">
+            停泊入页
+          </button>
+          <button type="button" class="editor-btn" @click="minimizePiecePanel">最小化</button>
+        </div>
+      </div>
+
+      <div class="piece-list piece-list--floating">
+        <article
+          v-for="(piece, idx) in pieces"
+          :key="piece.uid"
+          class="piece-card"
+          :class="{ 'piece-card--selected': selectedPieceUid === piece.uid }"
+        >
+          <div class="piece-preview-wrap">
+            <CircuitPuzzlePieceCard
+              :item-id="piece.uid"
+              :piece="toPieceDefinition(piece)"
+              :label="piece.name"
+              :counter-text="`剩余 ${remainingCountByUid.get(piece.uid) ?? 0}/${Math.max(0, piece.count)}`"
+              :footer-text="`已放置 ${usedCountByUid.get(piece.uid) ?? 0}`"
+              :rotation="pieceRotationByUid[piece.uid] ?? 0"
+              :placed-anchor="null"
+              :selected="selectedPieceUid === piece.uid"
+              :can-rotate="true"
+              :can-pickup="false"
+              :show-pickup="false"
+              :unavailable="(remainingCountByUid.get(piece.uid) ?? 0) <= 0"
+              @select="selectPiece"
+              @rotate="rotatePieceInPalette"
+            />
+          </div>
+
+          <div class="piece-card-head">
+            <label class="editor-field"
+              ><span>id</span><input v-model.trim="piece.id" type="text"
+            /></label>
+            <label class="editor-field"
+              ><span>name</span><input v-model.trim="piece.name" type="text"
+            /></label>
+            <label class="editor-field"
+              ><span>color</span
+              ><input v-model.trim="piece.color" type="text" placeholder="#9ddb22"
+            /></label>
+            <label class="editor-field"
+              ><span>count</span><input v-model.number="piece.count" type="number" min="0"
+            /></label>
+          </div>
+
+          <div class="piece-meta-row">
+            <span :class="{ 'text-unavailable': remainingCountByUid.get(piece.uid) === 0 }"
+              >剩余 {{ remainingCountByUid.get(piece.uid) ?? 0 }}/{{
+                Math.max(0, piece.count)
+              }}</span
+            >
+            <span>已放置 {{ usedCountByUid.get(piece.uid) ?? 0 }}</span>
+          </div>
+
+          <div class="piece-actions">
+            <button type="button" class="editor-btn" @click="selectPiece(piece.uid)">
+              选中摆放
+            </button>
+            <button type="button" class="editor-btn" @click="selectPieceForShape(piece.uid)">
+              编辑形状
+            </button>
+            <button type="button" class="editor-btn" @click="rotatePieceShape(piece.uid)">
+              旋转形状
+            </button>
+            <button type="button" class="editor-btn" @click="clearPieceCells(piece.uid)">
+              清空形状
+            </button>
+            <button type="button" class="editor-btn editor-btn--danger" @click="removePiece(idx)">
+              删除
+            </button>
           </div>
         </article>
       </div>
 
-      <div class="editor-actions">
-        <button type="button" class="editor-btn" @click="restoreFromCurrent">从当前关卡重载</button>
-        <button type="button" class="editor-btn" @click="resetAsBlank">清空为新模板</button>
-        <button type="button" class="editor-btn" @click="autoSolveLevel">自动解题</button>
-        <button type="button" class="editor-btn" @click="generateShareLink">生成分享链接</button>
-        <button type="button" class="editor-btn" @click="openAdvancedShare">高级共享</button>
-        <button type="button" class="editor-btn editor-btn--primary" @click="applyToGame">应用到试玩</button>
-      </div>
-      <label v-if="shareUrlText" class="editor-field">
-        <span>最近生成的分享链接</span>
-        <textarea :value="shareUrlText" rows="2" readonly />
-      </label>
+      <div class="piece-float-resizer" @pointerdown.stop.prevent="startPiecePanelResize" />
+    </aside>
 
-      <div v-if="buildErrors.length" class="editor-errors">
-        <div v-for="(err, i) in buildErrors" :key="`err-${i}`">{{ err }}</div>
-      </div>
-    </section>
-
-    <section class="editor-card">
-      <h3>方块形状画布</h3>
-      <div v-if="activeShapePiece" class="shape-title">当前编辑: {{ activeShapePiece.name }} ({{ activeShapePiece.id }})</div>
-      <div v-else class="shape-title">未选择方块</div>
-
-      <CircuitPuzzleBoard
-        :rows="pieceCanvasSize"
-        :cols="pieceCanvasSize"
-        :blocked-keys="[]"
-        :hint-keys="[]"
-        :hint-cells="[]"
-        :show-hints="false"
-        :occupied-keys="activeShapeKeys"
-        :occupied-cells="activeShapeCells"
-        :preview-keys="[]"
-        :preview-valid="true"
-        :row-targets="shapeRowTargets"
-        :row-filled="shapeRowTargets"
-        :col-targets="shapeColTargets"
-        :col-filled="shapeColTargets"
-        :selected-piece-name="activeShapePiece?.name ?? null"
-        :focus-row="shapeFocusRow"
-        :focus-col="shapeFocusCol"
-        display-mode="graphic"
-        @cell-click="onShapeCellClick"
-        @cell-hover="onShapeCellHover"
-        @board-leave="shapeHover = null"
-      />
-
-      <div class="editor-actions">
-        <button type="button" class="editor-btn" :disabled="!activeShapePiece" @click="normalizeActiveShape">归一化到左上</button>
-      </div>
-
-      <h3>关卡 JSON</h3>
-      <p class="editor-tip">支持字段：<code>board.hintCells</code>、<code>board.hintColors</code>、<code>board.blocked</code>、<code>pieces[].count</code>、<code>scoring.colorWeights</code>。</p>
-      <label class="editor-field"><span>JSON Preview</span><textarea :value="jsonPreview" rows="14" readonly /></label>
-      <label class="editor-field"><span>Import JSON</span><textarea v-model="importJsonText" rows="12" /></label>
-
-      <div class="editor-actions">
-        <button type="button" class="editor-btn" @click="fillImportWithCurrentJson">填入当前 JSON</button>
-        <button type="button" class="editor-btn editor-btn--primary" @click="applyImportJson">从 JSON 覆盖编辑器</button>
-      </div>
-
-      <div v-if="importErrors.length" class="editor-errors">
-        <div v-for="(err, i) in importErrors" :key="`import-${i}`">{{ err }}</div>
-      </div>
-    </section>
+    <div v-else class="piece-float-minimized-wrap" :style="piecePanelMinStyle">
+      <button type="button" class="piece-float-minimized" @click="restorePiecePanel">
+        方块列表 ({{ pieces.length }})
+      </button>
+      <button type="button" class="piece-float-minimized piece-float-minimized--ghost" @click="setPiecePanelDocked(true)">
+        停泊入页
+      </button>
+    </div>
   </div>
 </template>
 
@@ -215,17 +451,67 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import CircuitPuzzleBoard from './CircuitPuzzleBoard.vue';
 import CircuitPuzzlePieceCard from './CircuitPuzzlePieceCard.vue';
+import CircuitPuzzleShapeCanvas from './CircuitPuzzleShapeCanvas.vue';
+import { useSettingsStore } from 'src/stores/settings';
 import { solveLevel, verifySolution } from './auto-solver';
 import { cloneLevel } from './defaultLevel';
 import { levelToJson, parseLevelJson } from './levelFormat';
 import { buildSharePayload, getShareValue, resolveShareMode } from './url-share-options';
-import type { GridCell, PuzzleLevelDefinition, PuzzlePieceDefinition, PuzzleScorePart } from './types';
+import type {
+  GridCell,
+  PuzzleLevelDefinition,
+  PuzzlePieceDefinition,
+  PuzzleScorePart,
+} from './types';
 
 type BoardTool = 'place' | 'blocked' | 'hint' | 'paint' | 'erase';
-type PieceForm = { uid: string; id: string; name: string; color: string; count: number; cells: string[] };
-type Placement = { placementId: string; pieceUid: string; anchor: GridCell; rotation: number; color?: string };
+type PieceForm = {
+  uid: string;
+  id: string;
+  name: string;
+  color: string;
+  count: number;
+  cells: string[];
+};
+type Placement = {
+  placementId: string;
+  pieceUid: string;
+  anchor: GridCell;
+  rotation: number;
+  color?: string;
+};
 type OverlayCell = { key: string; color: string; groupId: string };
 type ScorePartCell = { x: number; y: number; color: string };
+type PiecePanelState = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  minimized: boolean;
+  docked: boolean;
+};
+type PiecePanelDragSession = {
+  mode: 'move' | 'resize';
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startLeft: number;
+  startTop: number;
+  startWidth: number;
+  startHeight: number;
+};
+
+const PIECE_PANEL_MIN_WIDTH = 340;
+const PIECE_PANEL_MIN_HEIGHT = 280;
+const PIECE_PANEL_DEFAULT: PiecePanelState = {
+  x: 16,
+  y: 120,
+  width: 420,
+  height: 620,
+  minimized: false,
+  docked: false,
+};
+const PIECE_PANEL_EDGE_GAP = 8;
 
 const props = defineProps<{ level: PuzzleLevelDefinition }>();
 const emit = defineEmits<{ (e: 'update:level', level: PuzzleLevelDefinition): void }>();
@@ -233,6 +519,7 @@ const $q = useQuasar();
 const isDark = computed(() => $q.dark.isActive);
 const route = useRoute();
 const router = useRouter();
+const settingsStore = useSettingsStore();
 
 const levelId = ref('');
 const levelName = ref('');
@@ -260,9 +547,22 @@ const buildErrors = ref<string[]>([]);
 const importErrors = ref<string[]>([]);
 const importJsonText = ref('');
 const shareUrlText = ref('');
+const piecePanelState = ref<PiecePanelState>(
+  sanitizePiecePanelState(settingsStore.circuitEditorPiecePanel),
+);
+const piecePanelDrag = ref<PiecePanelDragSession | null>(null);
 
 const pieceCanvasSize = 6;
-const presetPalette = ['#9ddb22', '#89d817', '#b7f227', '#8fd31d', '#52b8ff', '#46d2b1', '#ffbc4d', '#ff7777'];
+const presetPalette = [
+  '#9ddb22',
+  '#89d817',
+  '#b7f227',
+  '#8fd31d',
+  '#52b8ff',
+  '#46d2b1',
+  '#ffbc4d',
+  '#ff7777',
+];
 const pieceByUid = computed(() => new Map(pieces.value.map((p) => [p.uid, p])));
 const usedCountByUid = computed(() => {
   const map = new Map<string, number>();
@@ -315,17 +615,35 @@ const finalHintMetaMap = computed(() => {
 });
 const finalHintKeys = computed(() => Array.from(finalHintMetaMap.value.keys()));
 const hintOverlayCells = computed<OverlayCell[]>(() =>
-  Array.from(finalHintMetaMap.value.entries()).map(([key, meta]) => ({ key, color: meta.color, groupId: meta.groupId })),
+  Array.from(finalHintMetaMap.value.entries()).map(([key, meta]) => ({
+    key,
+    color: meta.color,
+    groupId: meta.groupId,
+  })),
 );
 
 const pieceColors = computed(() =>
-  Array.from(new Set(pieces.value.map((p) => normalizeHexColor(p.color) ?? '').filter((c): c is string => !!c))),
+  Array.from(
+    new Set(
+      pieces.value.map((p) => normalizeHexColor(p.color) ?? '').filter((c): c is string => !!c),
+    ),
+  ),
 );
 const hintColors = computed(() =>
-  Array.from(new Set(Object.values(manualHintColorByKey.value).map((c) => normalizeHexColor(c) ?? '').filter((c): c is string => !!c))),
+  Array.from(
+    new Set(
+      Object.values(manualHintColorByKey.value)
+        .map((c) => normalizeHexColor(c) ?? '')
+        .filter((c): c is string => !!c),
+    ),
+  ),
 );
-const scoringColors = computed(() => Array.from(new Set([...pieceColors.value, ...hintColors.value])));
-const colorWeightEntries = computed(() => scoringColors.value.map((color) => ({ color, weight: getScoreForColor(color) })));
+const scoringColors = computed(() =>
+  Array.from(new Set([...pieceColors.value, ...hintColors.value])),
+);
+const colorWeightEntries = computed(() =>
+  scoringColors.value.map((color) => ({ color, weight: getScoreForColor(color) })),
+);
 
 const hintScoreCells = computed<ScorePartCell[]>(() =>
   Array.from(finalHintMetaMap.value.entries()).map(([key, meta]) => {
@@ -370,7 +688,12 @@ const computedColTargets = computed(() => {
   }
   return counts;
 });
-const totalTargetScore = computed(() => Array.from(finalHintMetaMap.value.values()).reduce((acc, meta) => acc + getScoreForColor(meta.color), 0));
+const totalTargetScore = computed(() =>
+  Array.from(finalHintMetaMap.value.values()).reduce(
+    (acc, meta) => acc + getScoreForColor(meta.color),
+    0,
+  ),
+);
 
 const selectedPlacePieceName = computed(() => {
   if (!selectedPieceUid.value) return null;
@@ -394,37 +717,195 @@ const editorPreview = computed(() => {
 });
 const editorPreviewKeys = computed(() => editorPreview.value?.keys ?? []);
 const editorPreviewCells = computed<OverlayCell[]>(() =>
-  (editorPreview.value?.keys ?? []).map((key) => ({ key, color: editorPreview.value?.color ?? '#9ddb22', groupId: `preview-${editorPreview.value?.groupId ?? 'piece'}` })),
+  (editorPreview.value?.keys ?? []).map((key) => ({
+    key,
+    color: editorPreview.value?.color ?? '#9ddb22',
+    groupId: `preview-${editorPreview.value?.groupId ?? 'piece'}`,
+  })),
 );
 const editorPreviewValid = computed(() => editorPreview.value?.valid ?? true);
 const editorFocusRow = computed(() => boardHover.value?.y ?? null);
 const editorFocusCol = computed(() => boardHover.value?.x ?? null);
 
-const activeShapePiece = computed(() => (shapePieceUid.value ? pieceByUid.value.get(shapePieceUid.value) ?? null : null));
-const activeShapeKeys = computed(() => activeShapePiece.value?.cells ?? []);
-const activeShapeCells = computed<OverlayCell[]>(() =>
-  activeShapeKeys.value.map((key) => ({ key, color: normalizeHexColor(activeShapePiece.value?.color ?? '') ?? '#9ddb22', groupId: 'shape' })),
+const activeShapePiece = computed(() =>
+  shapePieceUid.value ? (pieceByUid.value.get(shapePieceUid.value) ?? null) : null,
 );
-const shapeFocusRow = computed(() => shapeHover.value?.y ?? null);
-const shapeFocusCol = computed(() => shapeHover.value?.x ?? null);
-const shapeRowTargets = computed(() => {
-  const out = Array.from({ length: pieceCanvasSize }, () => 0);
-  for (const key of activeShapeKeys.value) {
-    const { y } = parseKey(key);
-    if (y >= 0 && y < pieceCanvasSize) out[y] = (out[y] ?? 0) + 1;
-  }
-  return out;
-});
-const shapeColTargets = computed(() => {
-  const out = Array.from({ length: pieceCanvasSize }, () => 0);
-  for (const key of activeShapeKeys.value) {
-    const { x } = parseKey(key);
-    if (x >= 0 && x < pieceCanvasSize) out[x] = (out[x] ?? 0) + 1;
-  }
-  return out;
-});
+const activeShapeKeys = computed(() => activeShapePiece.value?.cells ?? []);
+const activeShapeColor = computed(
+  () => normalizeHexColor(activeShapePiece.value?.color ?? '') ?? '#9ddb22',
+);
+const shapeHoverKey = computed(() =>
+  shapeHover.value ? keyOf(shapeHover.value.x, shapeHover.value.y) : null,
+);
+const piecePanelStyle = computed(() => ({
+  left: `${Math.round(piecePanelState.value.x)}px`,
+  top: `${Math.round(piecePanelState.value.y)}px`,
+  width: `${Math.round(piecePanelState.value.width)}px`,
+  height: `${Math.round(piecePanelState.value.height)}px`,
+}));
+const piecePanelMinStyle = computed(() => ({
+  left: `${Math.round(piecePanelState.value.x)}px`,
+  top: `${Math.round(piecePanelState.value.y)}px`,
+}));
 
-watch(() => props.level, (level) => loadFormFromLevel(level), { immediate: true, deep: true });
+function clampNumber(value: number, min: number, max: number): number {
+  if (min > max) return min;
+  return Math.min(max, Math.max(min, value));
+}
+function sanitizePiecePanelState(raw: unknown): PiecePanelState {
+  if (!raw || typeof raw !== 'object') return { ...PIECE_PANEL_DEFAULT };
+  const maybe = raw as Partial<PiecePanelState>;
+  const x =
+    typeof maybe.x === 'number' && Number.isFinite(maybe.x) ? maybe.x : PIECE_PANEL_DEFAULT.x;
+  const y =
+    typeof maybe.y === 'number' && Number.isFinite(maybe.y) ? maybe.y : PIECE_PANEL_DEFAULT.y;
+  const width =
+    typeof maybe.width === 'number' && Number.isFinite(maybe.width)
+      ? maybe.width
+      : PIECE_PANEL_DEFAULT.width;
+  const height =
+    typeof maybe.height === 'number' && Number.isFinite(maybe.height)
+      ? maybe.height
+      : PIECE_PANEL_DEFAULT.height;
+  const minimized =
+    typeof maybe.minimized === 'boolean' ? maybe.minimized : PIECE_PANEL_DEFAULT.minimized;
+  const docked = typeof maybe.docked === 'boolean' ? maybe.docked : PIECE_PANEL_DEFAULT.docked;
+  return { x, y, width, height, minimized, docked };
+}
+function persistPiecePanelState(): void {
+  settingsStore.setCircuitEditorPiecePanel({
+    x: piecePanelState.value.x,
+    y: piecePanelState.value.y,
+    width: piecePanelState.value.width,
+    height: piecePanelState.value.height,
+    minimized: piecePanelState.value.minimized,
+    docked: piecePanelState.value.docked,
+  });
+}
+function clampPiecePanelState(): void {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const maxWidth = Math.max(PIECE_PANEL_MIN_WIDTH, vw - PIECE_PANEL_EDGE_GAP * 2);
+  const maxHeight = Math.max(PIECE_PANEL_MIN_HEIGHT, vh - PIECE_PANEL_EDGE_GAP * 2);
+  const width = clampNumber(piecePanelState.value.width, PIECE_PANEL_MIN_WIDTH, maxWidth);
+  const height = clampNumber(piecePanelState.value.height, PIECE_PANEL_MIN_HEIGHT, maxHeight);
+  const x = clampNumber(
+    piecePanelState.value.x,
+    PIECE_PANEL_EDGE_GAP,
+    Math.max(PIECE_PANEL_EDGE_GAP, vw - width - PIECE_PANEL_EDGE_GAP),
+  );
+  const y = clampNumber(
+    piecePanelState.value.y,
+    PIECE_PANEL_EDGE_GAP,
+    Math.max(PIECE_PANEL_EDGE_GAP, vh - height - PIECE_PANEL_EDGE_GAP),
+  );
+  piecePanelState.value = { ...piecePanelState.value, x, y, width, height };
+}
+function onPiecePanelPointerMove(event: PointerEvent): void {
+  const drag = piecePanelDrag.value;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  const dx = event.clientX - drag.startX;
+  const dy = event.clientY - drag.startY;
+  if (drag.mode === 'move') {
+    piecePanelState.value = {
+      ...piecePanelState.value,
+      x: drag.startLeft + dx,
+      y: drag.startTop + dy,
+    };
+  } else {
+    piecePanelState.value = {
+      ...piecePanelState.value,
+      width: drag.startWidth + dx,
+      height: drag.startHeight + dy,
+    };
+  }
+  clampPiecePanelState();
+}
+function stopPiecePanelInteraction(shouldPersist: boolean): void {
+  piecePanelDrag.value = null;
+  window.removeEventListener('pointermove', onPiecePanelPointerMove);
+  window.removeEventListener('pointerup', onPiecePanelPointerUp);
+  window.removeEventListener('pointercancel', onPiecePanelPointerUp);
+  if (shouldPersist) persistPiecePanelState();
+}
+function onPiecePanelPointerUp(event: PointerEvent): void {
+  const drag = piecePanelDrag.value;
+  if (!drag || drag.pointerId !== event.pointerId) return;
+  stopPiecePanelInteraction(true);
+}
+function onPiecePanelHeadPointerDown(event: PointerEvent): void {
+  if (event.button !== 0) return;
+  const target = event.target;
+  if (target instanceof HTMLElement) {
+    const interactive = target.closest('button, input, textarea, select, a, [role="button"]');
+    if (interactive) return;
+  }
+  startPiecePanelMove(event);
+}
+function startPiecePanelMove(event: PointerEvent): void {
+  if (piecePanelState.value.minimized) return;
+  event.preventDefault();
+  piecePanelDrag.value = {
+    mode: 'move',
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startLeft: piecePanelState.value.x,
+    startTop: piecePanelState.value.y,
+    startWidth: piecePanelState.value.width,
+    startHeight: piecePanelState.value.height,
+  };
+  window.addEventListener('pointermove', onPiecePanelPointerMove);
+  window.addEventListener('pointerup', onPiecePanelPointerUp);
+  window.addEventListener('pointercancel', onPiecePanelPointerUp);
+}
+function startPiecePanelResize(event: PointerEvent): void {
+  if (piecePanelState.value.minimized) return;
+  event.preventDefault();
+  piecePanelDrag.value = {
+    mode: 'resize',
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startLeft: piecePanelState.value.x,
+    startTop: piecePanelState.value.y,
+    startWidth: piecePanelState.value.width,
+    startHeight: piecePanelState.value.height,
+  };
+  window.addEventListener('pointermove', onPiecePanelPointerMove);
+  window.addEventListener('pointerup', onPiecePanelPointerUp);
+  window.addEventListener('pointercancel', onPiecePanelPointerUp);
+}
+function minimizePiecePanel(): void {
+  if (piecePanelState.value.docked) return;
+  piecePanelState.value = { ...piecePanelState.value, minimized: true };
+  persistPiecePanelState();
+}
+function restorePiecePanel(): void {
+  if (piecePanelState.value.docked) return;
+  piecePanelState.value = { ...piecePanelState.value, minimized: false };
+  clampPiecePanelState();
+  persistPiecePanelState();
+}
+function setPiecePanelDocked(docked: boolean): void {
+  piecePanelState.value = {
+    ...piecePanelState.value,
+    docked,
+    minimized: docked ? false : piecePanelState.value.minimized,
+  };
+  if (!docked) clampPiecePanelState();
+  persistPiecePanelState();
+}
+function onViewportResize(): void {
+  clampPiecePanelState();
+  persistPiecePanelState();
+}
+
+watch(
+  () => props.level,
+  (level) => loadFormFromLevel(level),
+  { immediate: true, deep: true },
+);
 watch([rows, cols], ([rRaw, cRaw]) => {
   const r = Math.max(1, Number(rRaw) || 1);
   const c = Math.max(1, Number(cRaw) || 1);
@@ -434,19 +915,29 @@ watch([rows, cols], ([rRaw, cRaw]) => {
   pruneHintMaps(r, c);
   prunePlacements();
 });
-watch(pieces, () => {
-  if (selectedPieceUid.value && !pieceByUid.value.has(selectedPieceUid.value)) selectedPieceUid.value = pieces.value[0]?.uid ?? null;
-  if (shapePieceUid.value && !pieceByUid.value.has(shapePieceUid.value)) shapePieceUid.value = pieces.value[0]?.uid ?? null;
-  prunePlacements();
-}, { deep: true });
-watch(scoringColors, (colors) => {
-  const next: Record<string, number> = {};
-  for (const color of colors) {
-    const current = Number(colorWeights.value[color]);
-    next[color] = Number.isFinite(current) && current >= 0 ? current : 1;
-  }
-  colorWeights.value = next;
-}, { immediate: true });
+watch(
+  pieces,
+  () => {
+    if (selectedPieceUid.value && !pieceByUid.value.has(selectedPieceUid.value))
+      selectedPieceUid.value = pieces.value[0]?.uid ?? null;
+    if (shapePieceUid.value && !pieceByUid.value.has(shapePieceUid.value))
+      shapePieceUid.value = pieces.value[0]?.uid ?? null;
+    prunePlacements();
+  },
+  { deep: true },
+);
+watch(
+  scoringColors,
+  (colors) => {
+    const next: Record<string, number> = {};
+    for (const color of colors) {
+      const current = Number(colorWeights.value[color]);
+      next[color] = Number.isFinite(current) && current >= 0 ? current : 1;
+    }
+    colorWeights.value = next;
+  },
+  { immediate: true },
+);
 function keyOf(x: number, y: number): string {
   return `${x},${y}`;
 }
@@ -493,7 +984,10 @@ function getScoreForColor(color: string): number {
 function setColorWeight(color: string, value: number): void {
   const normalized = normalizeHexColor(color);
   if (!normalized) return;
-  colorWeights.value = { ...colorWeights.value, [normalized]: Number.isFinite(value) && value >= 0 ? value : 0 };
+  colorWeights.value = {
+    ...colorWeights.value,
+    [normalized]: Number.isFinite(value) && value >= 0 ? value : 0,
+  };
 }
 function formatScore(value: number): string {
   const safe = Number.isFinite(value) ? value : 0;
@@ -503,7 +997,11 @@ function formatScore(value: number): string {
 function sumScoreParts(parts: PuzzleScorePart[]): number {
   return parts.reduce((acc, part) => acc + (Number.isFinite(part.value) ? part.value : 0), 0);
 }
-function buildAxisScoreParts(axisSize: number, cells: ScorePartCell[], axis: 'row' | 'col'): PuzzleScorePart[][] {
+function buildAxisScoreParts(
+  axisSize: number,
+  cells: ScorePartCell[],
+  axis: 'row' | 'col',
+): PuzzleScorePart[][] {
   const maps = Array.from({ length: axisSize }, () => new Map<string, number>());
   const orders = Array.from({ length: axisSize }, () => [] as string[]);
   for (const cell of cells) {
@@ -546,7 +1044,11 @@ function rotateCells(cells: GridCell[], rotation: number): GridCell[] {
 function getPieceCells(pieceUid: string): GridCell[] {
   const piece = pieceByUid.value.get(pieceUid);
   if (!piece) return [];
-  const coords = piece.cells.map(parseKey).filter((cell) => cell.x >= 0 && cell.y >= 0 && cell.x < pieceCanvasSize && cell.y < pieceCanvasSize);
+  const coords = piece.cells
+    .map(parseKey)
+    .filter(
+      (cell) => cell.x >= 0 && cell.y >= 0 && cell.x < pieceCanvasSize && cell.y < pieceCanvasSize,
+    );
   if (!coords.length) return [];
   const minX = Math.min(...coords.map((cell) => cell.x));
   const minY = Math.min(...coords.map((cell) => cell.y));
@@ -558,14 +1060,23 @@ function cellsForPlacement(pieceUid: string, anchor: GridCell, rotation: number)
   const rel = rotateCells(base, rotation);
   return rel.map((cell) => keyOf(anchor.x + cell.x, anchor.y + cell.y));
 }
-function getPlacementAnchorFromPointer(pieceUid: string, pointer: GridCell, rotation: number): GridCell {
+function getPlacementAnchorFromPointer(
+  pieceUid: string,
+  pointer: GridCell,
+  rotation: number,
+): GridCell {
   const rel = rotateCells(getPieceCells(pieceUid), rotation);
   if (!rel.length) return { ...pointer };
   const maxX = Math.max(...rel.map((cell) => cell.x));
   const maxY = Math.max(...rel.map((cell) => cell.y));
   return { x: pointer.x - Math.round(maxX / 2), y: pointer.y - Math.round(maxY / 2) };
 }
-function canPlace(pieceUid: string, anchor: GridCell, rotation: number, ignorePlacementId?: string): boolean {
+function canPlace(
+  pieceUid: string,
+  anchor: GridCell,
+  rotation: number,
+  ignorePlacementId?: string,
+): boolean {
   const keys = cellsForPlacement(pieceUid, anchor, rotation);
   if (!keys.length) return false;
   const blocked = new Set(blockedKeys.value);
@@ -619,10 +1130,23 @@ function pruneHintMaps(r = rows.value, c = cols.value): void {
 function removePlacement(placementId: string): void {
   placements.value = placements.value.filter((place) => place.placementId !== placementId);
 }
+function pickupPlacement(placementId: string): void {
+  const placement = placementById.value.get(placementId);
+  if (!placement) return;
+  removePlacement(placementId);
+  selectedPieceUid.value = placement.pieceUid;
+  pieceRotationByUid.value = {
+    ...pieceRotationByUid.value,
+    [placement.pieceUid]: placement.rotation,
+  };
+}
 function setHintColor(key: string, color: string, groupId?: string): void {
   const normalized = normalizeHexColor(color) ?? '#9ddb22';
   manualHintColorByKey.value = { ...manualHintColorByKey.value, [key]: normalized };
-  manualHintGroupByKey.value = { ...manualHintGroupByKey.value, [key]: groupId?.trim() || normalized };
+  manualHintGroupByKey.value = {
+    ...manualHintGroupByKey.value,
+    [key]: groupId?.trim() || normalized,
+  };
 }
 function removeHint(key: string): void {
   const nextColors = { ...manualHintColorByKey.value };
@@ -635,6 +1159,10 @@ function removeHint(key: string): void {
 function onBoardCellHover(cell: GridCell): void {
   boardHover.value = cell;
 }
+function onBoardCancelSelection(): void {
+  if (boardTool.value !== 'place') return;
+  selectedPieceUid.value = null;
+}
 function onBoardCellClick(cell: GridCell): void {
   const key = keyOf(cell.x, cell.y);
   const occupantPlacementId = placementCellMap.value.get(key);
@@ -642,11 +1170,7 @@ function onBoardCellClick(cell: GridCell): void {
 
   if (boardTool.value === 'place') {
     if (occupantPlacementId) {
-      const placement = placementById.value.get(occupantPlacementId);
-      if (placement) {
-        selectedPieceUid.value = placement.pieceUid;
-        pieceRotationByUid.value = { ...pieceRotationByUid.value, [placement.pieceUid]: placement.rotation };
-      }
+      pickupPlacement(occupantPlacementId);
       return;
     }
     if (!selectedPieceUid.value) return;
@@ -654,7 +1178,8 @@ function onBoardCellClick(cell: GridCell): void {
     const rotation = pieceRotationByUid.value[selectedPieceUid.value] ?? 0;
     const anchor = getPlacementAnchorFromPointer(selectedPieceUid.value, cell, rotation);
     if (!canPlace(selectedPieceUid.value, anchor, rotation)) return;
-    const pieceColor = normalizeHexColor(pieceByUid.value.get(selectedPieceUid.value)?.color ?? '') ?? '#9ddb22';
+    const pieceColor =
+      normalizeHexColor(pieceByUid.value.get(selectedPieceUid.value)?.color ?? '') ?? '#9ddb22';
     placements.value = [
       ...placements.value,
       {
@@ -734,11 +1259,17 @@ function selectPieceForShape(uid: string): void {
 }
 function rotateSelectedPlacePiece(): void {
   if (!selectedPieceUid.value) return;
-  pieceRotationByUid.value = { ...pieceRotationByUid.value, [selectedPieceUid.value]: ((pieceRotationByUid.value[selectedPieceUid.value] ?? 0) + 1) % 4 };
+  pieceRotationByUid.value = {
+    ...pieceRotationByUid.value,
+    [selectedPieceUid.value]: ((pieceRotationByUid.value[selectedPieceUid.value] ?? 0) + 1) % 4,
+  };
 }
 function rotatePieceInPalette(uid: string): void {
   selectedPieceUid.value = uid;
-  pieceRotationByUid.value = { ...pieceRotationByUid.value, [uid]: ((pieceRotationByUid.value[uid] ?? 0) + 1) % 4 };
+  pieceRotationByUid.value = {
+    ...pieceRotationByUid.value,
+    [uid]: ((pieceRotationByUid.value[uid] ?? 0) + 1) % 4,
+  };
 }
 function generateHintsFromPlacements(): void {
   const nextColors: Record<string, string> = {};
@@ -756,7 +1287,17 @@ function clearHints(): void {
 }
 function addPiece(): void {
   const uid = `piece-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  pieces.value = [...pieces.value, { uid, id: `piece_${pieces.value.length + 1}`, name: `Piece ${pieces.value.length + 1}`, color: selectedPaintColor.value, count: 1, cells: ['0,0'] }];
+  pieces.value = [
+    ...pieces.value,
+    {
+      uid,
+      id: `piece_${pieces.value.length + 1}`,
+      name: `Piece ${pieces.value.length + 1}`,
+      color: selectedPaintColor.value,
+      count: 1,
+      cells: ['0,0'],
+    },
+  ];
   if (!selectedPieceUid.value) selectedPieceUid.value = uid;
   if (!shapePieceUid.value) shapePieceUid.value = uid;
 }
@@ -792,7 +1333,9 @@ function normalizeActiveShape(): void {
   const minY = Math.min(...coords.map((cell) => cell.y));
   piece.cells = uniqueKeys(coords.map((cell) => keyOf(cell.x - minX, cell.y - minY)));
 }
-function onShapeCellHover(cell: GridCell): void { shapeHover.value = cell; }
+function onShapeCellHover(cell: GridCell): void {
+  shapeHover.value = cell;
+}
 function onShapeCellClick(cell: GridCell): void {
   if (!shapePieceUid.value) return;
   const piece = pieceByUid.value.get(shapePieceUid.value);
@@ -804,8 +1347,12 @@ function onShapeCellClick(cell: GridCell): void {
   piece.cells = Array.from(set);
   prunePlacements();
 }
-function clearPlacements(): void { placements.value = []; }
-function newUid(seed: string): string { return `${seed}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
+function clearPlacements(): void {
+  placements.value = [];
+}
+function newUid(seed: string): string {
+  return `${seed}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 function loadFormFromLevel(level: PuzzleLevelDefinition): void {
   const source = cloneLevel(level);
   levelId.value = source.id;
@@ -834,7 +1381,14 @@ function loadFormFromLevel(level: PuzzleLevelDefinition): void {
 
   colorWeights.value = { ...(source.colorWeights ?? {}) };
   placements.value = [];
-  pieces.value = source.pieces.map((piece) => ({ uid: newUid(piece.id), id: piece.id, name: piece.name, color: normalizeHexColor(piece.color) ?? '#9ddb22', count: Math.max(0, Math.floor(Number(piece.count) || 0)), cells: uniqueKeys(piece.cells.map((cell) => keyOf(cell.x, cell.y))) }));
+  pieces.value = source.pieces.map((piece) => ({
+    uid: newUid(piece.id),
+    id: piece.id,
+    name: piece.name,
+    color: normalizeHexColor(piece.color) ?? '#9ddb22',
+    count: Math.max(0, Math.floor(Number(piece.count) || 0)),
+    cells: uniqueKeys(piece.cells.map((cell) => keyOf(cell.x, cell.y))),
+  }));
   selectedPieceUid.value = pieces.value[0]?.uid ?? null;
   shapePieceUid.value = pieces.value[0]?.uid ?? null;
   pieceRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
@@ -847,7 +1401,10 @@ function loadFormFromLevel(level: PuzzleLevelDefinition): void {
   shareUrlText.value = '';
 }
 
-function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): { level: PuzzleLevelDefinition | null; errors: string[] } {
+function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): {
+  level: PuzzleLevelDefinition | null;
+  errors: string[];
+} {
   const errors: string[] = [];
   const r = Math.max(1, Number(rows.value) || 1);
   const c = Math.max(1, Number(cols.value) || 1);
@@ -855,8 +1412,12 @@ function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): { leve
   if (!levelId.value.trim()) errors.push('id is required');
   if (!levelName.value.trim()) errors.push('name is required');
 
-  const blocked = uniqueKeys(blockedKeys.value).filter((key) => inBoard(key, r, c)).map(parseKey);
-  const hintEntries = Array.from(finalHintMetaMap.value.entries()).filter(([key]) => inBoard(key, r, c));
+  const blocked = uniqueKeys(blockedKeys.value)
+    .filter((key) => inBoard(key, r, c))
+    .map(parseKey);
+  const hintEntries = Array.from(finalHintMetaMap.value.entries()).filter(([key]) =>
+    inBoard(key, r, c),
+  );
   const hintCells = hintEntries.map(([key]) => parseKey(key));
   const hintColors = Object.fromEntries(hintEntries.map(([key, meta]) => [key, meta.color]));
 
@@ -867,7 +1428,8 @@ function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): { leve
   for (let i = 0; i < pieces.value.length; i += 1) {
     const piece = pieces.value[i];
     if (!piece) continue;
-    if (!keepUnusedPieces.value && !includeUnusedPieces && !usedPlacementPieceUids.has(piece.uid)) continue;
+    if (!keepUnusedPieces.value && !includeUnusedPieces && !usedPlacementPieceUids.has(piece.uid))
+      continue;
 
     const id = piece.id.trim();
     const name = piece.name.trim();
@@ -879,7 +1441,8 @@ function buildLevelFromForm(options?: { includeUnusedPieces?: boolean }): { leve
     pieceIdSet.add(id);
 
     const cells = getPieceCells(piece.uid);
-    if (!cells.length && count > 0) errors.push(`piece ${id || i + 1} has count > 0 but shape is empty`);
+    if (!cells.length && count > 0)
+      errors.push(`piece ${id || i + 1} has count > 0 but shape is empty`);
     pieceDefs.push({ id, name, color, count, cells });
   }
 
@@ -1035,7 +1598,8 @@ function autoSolveLevel(): void {
       missingPieceIds.add(solved.pieceId);
       continue;
     }
-    const fallbackColor = normalizeHexColor(pieceByUid.value.get(pieceUid)?.color ?? '') ?? '#9ddb22';
+    const fallbackColor =
+      normalizeHexColor(pieceByUid.value.get(pieceUid)?.color ?? '') ?? '#9ddb22';
     nextPlacements.push({
       placementId: `auto-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
       pieceUid,
@@ -1053,7 +1617,10 @@ function autoSolveLevel(): void {
 
   placements.value = nextPlacements;
   boardTool.value = 'place';
-  $q.notify({ type: 'positive', message: `自动解题完成：共 ${nextPlacements.length} 个摆放（搜索 ${result.nodes} 节点）。` });
+  $q.notify({
+    type: 'positive',
+    message: `自动解题完成：共 ${nextPlacements.length} 个摆放（搜索 ${result.nodes} 节点）。`,
+  });
 }
 async function generateShareLink(): Promise<void> {
   const built = buildLevelFromForm();
@@ -1071,7 +1638,10 @@ async function generateShareLink(): Promise<void> {
   shareUrlText.value = shareUrl;
 
   await copyText(shareUrl);
-  $q.notify({ type: 'positive', message: `已生成并复制分享链接（${mode}，${encoded.length} 字符）。` });
+  $q.notify({
+    type: 'positive',
+    message: `已生成并复制分享链接（${mode}，${encoded.length} 字符）。`,
+  });
 }
 function openAdvancedShare(): void {
   const built = buildLevelFromForm();
@@ -1120,11 +1690,16 @@ function openAdvancedShare(): void {
       const url = buildShareUrlForEncoded(content);
       shareUrlText.value = url;
       await copyText(url);
-      $q.notify({ type: 'positive', message: `分享链接已复制（${resolvedMode}，${content.length} 字符）。` });
+      $q.notify({
+        type: 'positive',
+        message: `分享链接已复制（${resolvedMode}，${content.length} 字符）。`,
+      });
     })();
   });
 }
-function restoreFromCurrent(): void { loadFormFromLevel(props.level); }
+function restoreFromCurrent(): void {
+  loadFormFromLevel(props.level);
+}
 function resetAsBlank(): void {
   levelId.value = 'custom-level';
   levelName.value = 'Custom Puzzle';
@@ -1134,7 +1709,16 @@ function resetAsBlank(): void {
   manualHintColorByKey.value = {};
   manualHintGroupByKey.value = {};
   placements.value = [];
-  pieces.value = [{ uid: newUid('piece'), id: 'piece_1', name: 'Piece 1', color: '#9ddb22', count: 1, cells: ['0,0'] }];
+  pieces.value = [
+    {
+      uid: newUid('piece'),
+      id: 'piece_1',
+      name: 'Piece 1',
+      color: '#9ddb22',
+      count: 1,
+      cells: ['0,0'],
+    },
+  ];
   selectedPieceUid.value = pieces.value[0]?.uid ?? null;
   shapePieceUid.value = pieces.value[0]?.uid ?? null;
   pieceRotationByUid.value = Object.fromEntries(pieces.value.map((piece) => [piece.uid, 0]));
@@ -1147,7 +1731,9 @@ function resetAsBlank(): void {
   importErrors.value = [];
   shareUrlText.value = '';
 }
-function fillImportWithCurrentJson(): void { importJsonText.value = jsonPreview.value.startsWith('//') ? '' : jsonPreview.value; }
+function fillImportWithCurrentJson(): void {
+  importJsonText.value = jsonPreview.value.startsWith('//') ? '' : jsonPreview.value;
+}
 function applyImportJson(): void {
   importErrors.value = [];
   const raw = importJsonText.value.trim();
@@ -1156,9 +1742,17 @@ function applyImportJson(): void {
     return;
   }
   let parsed: unknown;
-  try { parsed = JSON.parse(raw); } catch { importErrors.value = ['JSON parse failed']; return; }
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    importErrors.value = ['JSON parse failed'];
+    return;
+  }
   const { level, errors } = parseLevelJson(parsed);
-  if (!level) { importErrors.value = errors; return; }
+  if (!level) {
+    importErrors.value = errors;
+    return;
+  }
   loadFormFromLevel(level);
 }
 function onEditorKeyDown(event: KeyboardEvent): void {
@@ -1169,7 +1763,11 @@ function onEditorKeyDown(event: KeyboardEvent): void {
     else if (shapePieceUid.value) rotatePieceShape(shapePieceUid.value);
     return;
   }
-  if (event.key === 'g' || event.key === 'G') { event.preventDefault(); generateHintsFromPlacements(); return; }
+  if (event.key === 'g' || event.key === 'G') {
+    event.preventDefault();
+    generateHintsFromPlacements();
+    return;
+  }
   if (event.key === '1') boardTool.value = 'place';
   if (event.key === '2') boardTool.value = 'blocked';
   if (event.key === '3') boardTool.value = 'hint';
@@ -1180,8 +1778,16 @@ function onEditorKeyDown(event: KeyboardEvent): void {
     const boardKey = boardHover.value ? keyOf(boardHover.value.x, boardHover.value.y) : null;
     if (boardKey) {
       const placementId = placementCellMap.value.get(boardKey);
-      if (placementId) { event.preventDefault(); removePlacement(placementId); return; }
-      if (boardKey in manualHintColorByKey.value) { event.preventDefault(); removeHint(boardKey); return; }
+      if (placementId) {
+        event.preventDefault();
+        removePlacement(placementId);
+        return;
+      }
+      if (boardKey in manualHintColorByKey.value) {
+        event.preventDefault();
+        removeHint(boardKey);
+        return;
+      }
     }
     if (shapeHover.value && shapePieceUid.value) {
       event.preventDefault();
@@ -1199,8 +1805,17 @@ function isTypingTarget(target: EventTarget | null): boolean {
   const tag = target.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
-onMounted(() => { window.addEventListener('keydown', onEditorKeyDown); });
-onUnmounted(() => { window.removeEventListener('keydown', onEditorKeyDown); });
+onMounted(() => {
+  clampPiecePanelState();
+  persistPiecePanelState();
+  window.addEventListener('keydown', onEditorKeyDown);
+  window.addEventListener('resize', onViewportResize);
+});
+onUnmounted(() => {
+  stopPiecePanelInteraction(false);
+  window.removeEventListener('keydown', onEditorKeyDown);
+  window.removeEventListener('resize', onViewportResize);
+});
 </script>
 
 <style scoped>
@@ -1246,48 +1861,412 @@ onUnmounted(() => { window.removeEventListener('keydown', onEditorKeyDown); });
   --ed-error-bg: rgba(67, 13, 13, 0.55);
   --ed-error-text: #ffc8c8;
 }
-.editor-card { border: 1px solid var(--ed-card-border); border-radius: 12px; background: var(--ed-card-bg); padding: 12px; display: flex; flex-direction: column; gap: 10px; }
-.editor-card h3 { margin: 0; color: var(--ed-title); font-size: 16px; }
-.editor-tip { margin: 0; font-size: 12px; color: var(--ed-muted); }
-.editor-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.editor-field { display: flex; flex-direction: column; gap: 4px; }
-.editor-field span { font-size: 12px; color: var(--ed-text); }
-.editor-field input, .editor-field textarea, .palette-input { border: 1px solid var(--ed-input-border); border-radius: 8px; background: var(--ed-input-bg); color: var(--ed-text); padding: 8px; font-size: 13px; font-family: 'Consolas', 'Courier New', monospace; }
-.tool-row, .editor-actions, .piece-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.tool-label { font-size: 12px; color: var(--ed-text); }
-.palette-panel { border: 1px solid var(--ed-card-border); border-radius: 8px; background: var(--ed-panel-bg); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
-.palette-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
-.palette-swatch { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(205, 219, 214, 0.5); cursor: pointer; }
-.palette-swatch--active { box-shadow: 0 0 0 2px rgba(198, 255, 73, 0.45); }
-.palette-custom-row { display: flex; align-items: center; gap: 8px; }
-.palette-input { width: 120px; }
-.palette-preview { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(205, 219, 214, 0.45); }
-.palette-error { font-size: 12px; color: #ffaaaa; }
-.summary-row { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--ed-text); align-items: center; }
-.toggle-field { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ed-text); }
-.color-weight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
-.color-weight-item span { display: inline-flex; align-items: center; gap: 6px; }
-.color-chip { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(222, 236, 231, 0.45); display: inline-block; }
-.pieces-head { display: flex; align-items: center; justify-content: space-between; }
-.piece-list { display: flex; flex-direction: column; gap: 10px; max-height: 40vh; overflow: auto; }
-.piece-card { border: 1px solid var(--ed-card-border); border-radius: 8px; background: var(--ed-panel-bg); padding: 8px; display: flex; flex-direction: column; gap: 6px; }
-.piece-card--selected { border-color: rgba(198, 255, 73, 0.8); }
-.piece-preview-wrap { border: 1px solid var(--ed-card-border); border-radius: 8px; padding: 6px; background: var(--ed-card-bg); }
-.piece-card-head { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; align-items: end; }
-.piece-meta-row { display: flex; gap: 10px; font-size: 12px; color: var(--ed-text); }
-.text-unavailable { color: #ff9e9e; }
-.shape-title { font-size: 13px; color: var(--ed-text); }
-.editor-btn { border: 1px solid var(--ed-btn-border); border-radius: 6px; background: var(--ed-btn-bg); color: var(--ed-btn-text); font-size: 12px; line-height: 1; padding: 8px 10px; cursor: pointer; }
-.editor-btn:hover { border-color: var(--ed-btn-hover); color: var(--ed-btn-active); }
-.editor-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.editor-btn--active { border-color: var(--ed-btn-hover); color: var(--ed-btn-active); }
-.editor-btn--primary { border-color: var(--ed-btn-hover); color: var(--ed-btn-active); }
-.editor-btn--danger { border-color: rgba(255, 124, 124, 0.55); color: var(--ed-danger); }
-.editor-errors { border: 1px solid var(--ed-error-border); border-radius: 8px; background: var(--ed-error-bg); color: var(--ed-error-text); padding: 8px; font-size: 12px; display: flex; flex-direction: column; gap: 4px; }
-@media (max-width: 1400px) { .level-editor { grid-template-columns: 1fr; } }
+.editor-card {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 12px;
+  background: var(--ed-card-bg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor-card h3 {
+  margin: 0;
+  color: var(--ed-title);
+  font-size: 16px;
+}
+.editor-tip {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ed-muted);
+}
+.editor-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.editor-field span {
+  font-size: 12px;
+  color: var(--ed-text);
+}
+.editor-field input,
+.editor-field textarea,
+.palette-input {
+  border: 1px solid var(--ed-input-border);
+  border-radius: 8px;
+  background: var(--ed-input-bg);
+  color: var(--ed-text);
+  padding: 8px;
+  font-size: 13px;
+  font-family: 'Consolas', 'Courier New', monospace;
+}
+.tool-row,
+.editor-actions,
+.piece-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tool-label {
+  font-size: 12px;
+  color: var(--ed-text);
+}
+.palette-panel {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 8px;
+  background: var(--ed-panel-bg);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.palette-swatches {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.palette-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(205, 219, 214, 0.5);
+  cursor: pointer;
+}
+.palette-swatch--active {
+  box-shadow: 0 0 0 2px rgba(198, 255, 73, 0.45);
+}
+.palette-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.palette-input {
+  width: 120px;
+}
+.palette-preview {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid rgba(205, 219, 214, 0.45);
+}
+.palette-error {
+  font-size: 12px;
+  color: #ffaaaa;
+}
+.summary-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--ed-text);
+  align-items: center;
+}
+.toggle-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ed-text);
+}
+.color-weight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+.color-weight-item span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.color-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(222, 236, 231, 0.45);
+  display: inline-block;
+}
+.pieces-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.piece-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 56vh;
+  overflow: auto;
+}
+.piece-list--docked {
+  max-height: 68vh;
+}
+.piece-docked-card {
+  grid-column: 1 / -1;
+}
+.piece-docked-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.piece-docked-head h3 {
+  margin: 0;
+}
+.piece-docked-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.piece-card {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 8px;
+  background: var(--ed-panel-bg);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.piece-card--selected {
+  border-color: rgba(198, 255, 73, 0.8);
+}
+.piece-preview-wrap {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--ed-card-bg);
+}
+.piece-card-head {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  align-items: end;
+}
+.piece-meta-row {
+  display: flex;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ed-text);
+}
+.text-unavailable {
+  color: #ff9e9e;
+}
+.piece-float-panel {
+  position: fixed;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--ed-card-border);
+  border-radius: 10px;
+  background: var(--ed-card-bg);
+  box-shadow: 0 14px 34px rgba(2, 10, 9, 0.3);
+  overflow: hidden;
+  backdrop-filter: blur(6px);
+}
+.piece-float-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--ed-card-border);
+  background: var(--ed-panel-bg);
+  cursor: move;
+  user-select: none;
+}
+.piece-float-dragger {
+  font-size: 13px;
+  color: var(--ed-title);
+  font-weight: 600;
+}
+.piece-float-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: default;
+}
+.piece-list--floating {
+  max-height: none;
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}
+.piece-float-resizer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, rgba(176, 204, 192, 0.65) 50%) no-repeat;
+  border: 0;
+  padding: 0;
+}
+.piece-float-minimized-wrap {
+  position: fixed;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.piece-float-minimized {
+  border: 1px solid var(--ed-btn-border);
+  border-radius: 999px;
+  background: var(--ed-btn-bg);
+  color: var(--ed-btn-text);
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(2, 10, 9, 0.24);
+}
+.piece-float-minimized--ghost {
+  background: var(--ed-panel-bg);
+}
+.shape-title {
+  font-size: 13px;
+  color: var(--ed-text);
+}
+.shape-tip {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ed-muted);
+}
+.shape-json-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 44%);
+  gap: 12px;
+  align-items: start;
+}
+.shape-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shape-right-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.score-panel {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 8px;
+  background: var(--ed-panel-bg);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.score-panel .color-weight-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.json-panel {
+  border: 1px solid var(--ed-card-border);
+  border-radius: 8px;
+  background: var(--ed-panel-bg);
+}
+.json-panel-summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 10px;
+  font-size: 13px;
+  color: var(--ed-title);
+  user-select: none;
+}
+.json-panel-summary::-webkit-details-marker {
+  display: none;
+}
+.json-panel-summary::before {
+  content: '▸';
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--ed-muted);
+  transition: transform 0.15s ease;
+}
+.json-panel[open] .json-panel-summary::before {
+  transform: rotate(90deg);
+}
+.json-panel-body {
+  padding: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor-btn {
+  border: 1px solid var(--ed-btn-border);
+  border-radius: 6px;
+  background: var(--ed-btn-bg);
+  color: var(--ed-btn-text);
+  font-size: 12px;
+  line-height: 1;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.editor-btn:hover {
+  border-color: var(--ed-btn-hover);
+  color: var(--ed-btn-active);
+}
+.editor-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.editor-btn--active {
+  border-color: var(--ed-btn-hover);
+  color: var(--ed-btn-active);
+}
+.editor-btn--primary {
+  border-color: var(--ed-btn-hover);
+  color: var(--ed-btn-active);
+}
+.editor-btn--danger {
+  border-color: rgba(255, 124, 124, 0.55);
+  color: var(--ed-danger);
+}
+.editor-errors {
+  border: 1px solid var(--ed-error-border);
+  border-radius: 8px;
+  background: var(--ed-error-bg);
+  color: var(--ed-error-text);
+  padding: 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (max-width: 1400px) {
+  .level-editor {
+    grid-template-columns: 1fr;
+  }
+  .piece-list {
+    max-height: 46vh;
+  }
+}
 @media (max-width: 860px) {
-  .editor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .piece-card-head { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .palette-custom-row { flex-wrap: wrap; }
+  .editor-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .piece-card-head {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .palette-custom-row {
+    flex-wrap: wrap;
+  }
+  .shape-json-layout {
+    grid-template-columns: 1fr;
+  }
+  .score-panel .color-weight-grid {
+    grid-template-columns: 1fr;
+  }
+  .piece-float-head {
+    cursor: grab;
+  }
+  .piece-float-panel {
+    z-index: 90;
+  }
 }
 </style>

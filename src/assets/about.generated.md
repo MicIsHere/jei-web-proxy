@@ -1,16 +1,26 @@
 # About
 
 ## Build
-- Version: 2d6492c-dirty
-- Commit: 2d6492c (2d6492c9db69189f0e41c3035d3ff77375a3ea57)
-- Commit count: 59
-- Subject: feat: adjust layout scroll behavior
+- Version: afb0a92-dirty
+- Commit: afb0a92 (afb0a92db1c0dc31e7c646aede90acfc6fc6ad9f)
+- Commit count: 60
+- Subject: feat: integrate itemsLite index and lazy loading
 - Author: AndreaFrederica
-- Date: 2026-02-11T23:36:32+08:00
-- Generated at: 2026-02-11T17:03:14.947Z
+- Date: 2026-02-12T01:09:05+08:00
+- Generated at: 2026-02-11T20:53:17.699Z
 - Remote: https://github.com/AndreaFrederica/jei-web.git
 
 ## Version History
+
+### r60 (2026-02-12T01:09:05+08:00)
+- afb0a92
+  feat: integrate itemsLite index and lazy loading
+  
+  - Add `gen:items-lite` script and execute it during `predev` and `prebuild` to generate reduced item indexes.
+  - Include `itemsLite.json` for the aef pack containing essential item data.
+  - Update `pack/loader.ts` to support loading `itemsLite` from the manifest, marking items as not fully loaded initially.
+  - Add `lazyVisual` prop to `RecipeCard` and `ItemSlot` components to support deferred visual rendering.
+  - This change improves initial load performance by minimizing the data processed on startup.
 
 ### r59 (2026-02-11T23:36:32+08:00)
 - 2d6492c

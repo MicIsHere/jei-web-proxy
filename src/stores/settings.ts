@@ -3,6 +3,14 @@ import { Dark } from 'quasar';
 
 export type DarkMode = 'auto' | 'light' | 'dark';
 export type Language = 'zh-CN' | 'en-US' | 'ja-JP';
+type CircuitEditorPiecePanelState = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  minimized: boolean;
+  docked: boolean;
+};
 
 function darkModeToQuasar(mode: DarkMode): boolean | 'auto' {
   if (mode === 'auto') return 'auto';
@@ -39,6 +47,7 @@ export const useSettingsStore = defineStore('settings', {
       wikiImageProxyUrl: 'https://r.jina.ai/http://',
       wikiCatalogFileName: '',
       circuitCollectionPreviewShowPieces: false,
+      circuitEditorPiecePanel: { x: 16, y: 120, width: 420, height: 620, minimized: false, docked: false } as CircuitEditorPiecePanelState,
     };
     try {
       const raw = localStorage.getItem('jei.settings');
@@ -57,6 +66,27 @@ export const useSettingsStore = defineStore('settings', {
           ? parsed.language
           : defaults.language;
       const recipeViewMode: 'dialog' | 'panel' = parsed.recipeViewMode === 'panel' ? 'panel' : 'dialog';
+      const panelParsed = parsed.circuitEditorPiecePanel;
+      const circuitEditorPiecePanel =
+        panelParsed
+        && typeof panelParsed.x === 'number'
+        && Number.isFinite(panelParsed.x)
+        && typeof panelParsed.y === 'number'
+        && Number.isFinite(panelParsed.y)
+        && typeof panelParsed.width === 'number'
+        && Number.isFinite(panelParsed.width)
+        && typeof panelParsed.height === 'number'
+        && Number.isFinite(panelParsed.height)
+        && typeof panelParsed.minimized === 'boolean'
+          ? {
+              x: panelParsed.x,
+              y: panelParsed.y,
+              width: panelParsed.width,
+              height: panelParsed.height,
+              minimized: panelParsed.minimized,
+              docked: typeof panelParsed.docked === 'boolean' ? panelParsed.docked : defaults.circuitEditorPiecePanel.docked,
+            }
+          : defaults.circuitEditorPiecePanel;
       return {
         historyLimit: typeof parsed.historyLimit === 'number' ? parsed.historyLimit : defaults.historyLimit,
         debugLayout: typeof parsed.debugLayout === 'boolean' ? parsed.debugLayout : defaults.debugLayout,
@@ -106,6 +136,7 @@ export const useSettingsStore = defineStore('settings', {
           typeof parsed.circuitCollectionPreviewShowPieces === 'boolean'
             ? parsed.circuitCollectionPreviewShowPieces
             : defaults.circuitCollectionPreviewShowPieces,
+        circuitEditorPiecePanel,
       };
     } catch {
       Dark.set('auto');
@@ -188,6 +219,17 @@ export const useSettingsStore = defineStore('settings', {
       this.circuitCollectionPreviewShowPieces = value;
       this.save();
     },
+    setCircuitEditorPiecePanel(value: CircuitEditorPiecePanelState) {
+      this.circuitEditorPiecePanel = {
+        x: value.x,
+        y: value.y,
+        width: value.width,
+        height: value.height,
+        minimized: value.minimized,
+        docked: value.docked,
+      };
+      this.save();
+    },
     save() {
       localStorage.setItem(
         'jei.settings',
@@ -210,6 +252,7 @@ export const useSettingsStore = defineStore('settings', {
           wikiImageProxyUrl: this.wikiImageProxyUrl,
           wikiCatalogFileName: this.wikiCatalogFileName,
           circuitCollectionPreviewShowPieces: this.circuitCollectionPreviewShowPieces,
+          circuitEditorPiecePanel: this.circuitEditorPiecePanel,
         }),
       );
     },
