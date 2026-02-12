@@ -11,7 +11,12 @@
           有任何反馈和希望参与开发都可以加入，也支持明日方舟:终末地（还有任何我们支持的游戏和Minecraft）的游戏讨论。
         </p>
         <p>
-          页面由 Mic 提供国内加速镜像，网页内信息与其没有任何关联，官网：jeiweb.sirrus.cc
+          中国大陆访问镜像由 Mic 提供，地址为https://jei.mic.run
+          </br>
+          或者您可以通过https://cnjeiweb.sirrus.cc来转跳访问，
+        </br>
+        CloudFlare源：https://jeiweb.sirrus.cc
+        EdgeOne亚太源: https://fastjeiweb.sirrus.cc
         </p>
         <p class="text-grey text-caption q-mt-md">
           免责声明：JEI-Web 和 Minecraft Mod JEI 没有任何隶属和其他关系，仅仅是灵感来源于 JEI Mod。
