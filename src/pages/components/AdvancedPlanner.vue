@@ -644,6 +644,16 @@
               />
               <q-toggle v-model="lineCollapseIntermediate" dense :label="t('hideIntermediate')" />
               <q-toggle v-model="lineIncludeCycleSeeds" dense :label="t('showCycleSeeds')" />
+              <q-toggle v-model="lineWidthByRate" dense :label="t('lineWidthByRate')" />
+              <q-btn
+                v-if="lineWidthByRate"
+                dense
+                flat
+                no-caps
+                icon="tune"
+                :label="t('lineWidthEditCurve')"
+                @click="lineWidthCurveDialogOpen = true"
+              />
               <q-space />
               <q-btn
                 flat
@@ -1017,6 +1027,13 @@
       </q-card-actions>
     </q-card>
   </q-dialog>
+
+  <line-width-curve-editor
+    :open="lineWidthCurveDialogOpen"
+    :model-value="lineWidthCurveConfig"
+    @update:open="(v) => (lineWidthCurveDialogOpen = v)"
+    @update:model-value="(v) => (lineWidthCurveConfig = v)"
+  />
 </template>
 
 <script setup lang="ts">
@@ -1038,7 +1055,14 @@ import {
   buildEnhancedRequirementTree,
 } from 'src/jei/planner/planner';
 import StackView from 'src/jei/components/StackView.vue';
+import LineWidthCurveEditor from 'src/jei/components/LineWidthCurveEditor.vue';
 import { buildProductionLineModel } from 'src/jei/planner/productionLine';
+import {
+  convertAmountPerMinuteToUnitValue,
+  createDefaultLineWidthCurveConfig,
+  evaluateLineWidthCurve,
+  type LineWidthCurveConfig,
+} from 'src/jei/planner/lineWidthCurve';
 import type { PlannerSavePayload } from 'src/jei/planner/plannerUi';
 import { Background } from '@vue-flow/background';
 import { Controls } from '@vue-flow/controls';
@@ -1113,6 +1137,9 @@ const graphNodePositions = ref(new Map<string, { x: number; y: number }>());
 const lineDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
 const lineCollapseIntermediate = ref(true);
 const lineIncludeCycleSeeds = ref(true);
+const lineWidthByRate = ref(false);
+const lineWidthCurveDialogOpen = ref(false);
+const lineWidthCurveConfig = ref<LineWidthCurveConfig>(createDefaultLineWidthCurveConfig());
 const selectedLineNodeId = ref<string | null>(null);
 const lineNodePositions = ref(new Map<string, { x: number; y: number }>());
 const calcDisplayUnit = ref<'per_second' | 'per_minute' | 'per_hour'>('per_minute');
@@ -1775,6 +1802,36 @@ function rateByUnitFromPerSecond(
   return perSecond * 60;
 }
 
+const LINE_EDGE_BASE_STROKE_WIDTH = 2;
+
+function lineEdgeBaseWidthFromRate(
+  amountPerMinute: number,
+): number {
+  if (!lineWidthByRate.value) return LINE_EDGE_BASE_STROKE_WIDTH;
+  const cfg = lineWidthCurveConfig.value;
+  const unitValue = convertAmountPerMinuteToUnitValue(
+    finiteOr(amountPerMinute, 0),
+    beltSpeed.value,
+    cfg.unit,
+  );
+  return evaluateLineWidthCurve(unitValue, cfg);
+}
+
+function lineEdgeStrokeWidth(
+  edge: Edge,
+  emphasis: 'normal' | 'toRoot' | 'connected' | 'path' | 'fromLeaf',
+): number {
+  const base = finiteOr(
+    (edge.style as { strokeWidth?: number } | undefined)?.strokeWidth,
+    LINE_EDGE_BASE_STROKE_WIDTH,
+  );
+  if (emphasis === 'connected') return base + 1;
+  if (emphasis === 'path') return base + 0.7;
+  if (emphasis === 'toRoot') return base + 0.5;
+  if (emphasis === 'fromLeaf') return base + 0.3;
+  return base;
+}
+
 type GraphNodeData = {
   kind: 'item' | 'fluid';
   title: string;
@@ -2246,11 +2303,15 @@ const lineFlow = computed(() => {
       label,
       labelBgPadding: [6, 3],
       labelBgBorderRadius: 6,
-      style: { strokeWidth: 2 },
+      style: {
+        strokeWidth: lineEdgeBaseWidthFromRate(e.amount),
+      },
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        width: 18,
-        height: 18,
+        width: 10,
+        height: 10,
+        markerUnits: 'userSpaceOnUse',
+        strokeWidth: 1.5,
       },
     };
   });
@@ -2669,7 +2730,10 @@ const lineFlowEdgesStyled = computed(() => {
   if (!selectedId) {
     return lineFlowEdges.value.map((edge) => ({
       ...edge,
-      style: { strokeWidth: 2 },
+      style: {
+        ...(edge.style ?? {}),
+        strokeWidth: lineEdgeStrokeWidth(edge, 'normal'),
+      },
       ...(edge.zIndex !== undefined ? { zIndex: edge.zIndex } : {}),
     }));
   }
@@ -2744,14 +2808,38 @@ const lineFlowEdgesStyled = computed(() => {
     const toRoot = rootItemIds.has(edge.target) && downstreamNodeIds.has(edge.target);
     const fromLeaf = leafItemIds.has(edge.source);
     const style = toRoot
-      ? { ...(edge.style ?? {}), stroke: '#7e57c2', strokeWidth: 2.4, opacity: 0.95 }
+      ? {
+          ...(edge.style ?? {}),
+          stroke: '#7e57c2',
+          strokeWidth: lineEdgeStrokeWidth(edge, 'toRoot'),
+          opacity: 0.95,
+        }
       : connected
-        ? { ...(edge.style ?? {}), stroke: 'var(--q-primary)', strokeWidth: 3, opacity: 1 }
+        ? {
+            ...(edge.style ?? {}),
+            stroke: 'var(--q-primary)',
+            strokeWidth: lineEdgeStrokeWidth(edge, 'connected'),
+            opacity: 1,
+          }
         : inPath
-          ? { ...(edge.style ?? {}), stroke: 'var(--q-secondary)', strokeWidth: 2.5, opacity: 0.9 }
+          ? {
+              ...(edge.style ?? {}),
+              stroke: 'var(--q-secondary)',
+              strokeWidth: lineEdgeStrokeWidth(edge, 'path'),
+              opacity: 0.9,
+            }
           : fromLeaf
-            ? { ...(edge.style ?? {}), stroke: '#f9a825', strokeWidth: 2.2, opacity: 0.85 }
-            : { ...(edge.style ?? {}), opacity: 0.2 };
+            ? {
+                ...(edge.style ?? {}),
+                stroke: '#f9a825',
+                strokeWidth: lineEdgeStrokeWidth(edge, 'fromLeaf'),
+                opacity: 0.85,
+              }
+            : {
+                ...(edge.style ?? {}),
+                strokeWidth: lineEdgeStrokeWidth(edge, 'normal'),
+                opacity: 0.2,
+              };
     const result: Edge = {
       ...edge,
       style,
